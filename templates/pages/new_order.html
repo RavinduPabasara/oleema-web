@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Order - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('dashboard') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Add New Order</h1>
+        </div>
+        <p class="text-gray-600">Create a new production order with cutting details</p>
+    </div>
+
+    <!-- Order Form -->
+    <div class="max-w-2xl">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Order Details</h3>
+                <p class="card-subtitle">Fill in the order information below</p>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" class="space-y-6">
+                    <!-- Order Number -->
+                    <div class="form-group">
+                        <label for="order_no" class="form-label">Order Number</label>
+                        <input 
+                            type="text" 
+                            id="order_no" 
+                            name="order_no" 
+                            class="form-input" 
+                            placeholder="e.g., BR-001"
+                            required
+                        >
+                    </div>
+
+                    <!-- Date -->
+                    <div class="form-group">
+                        <label for="date" class="form-label">Order Date</label>
+                        <input 
+                            type="date" 
+                            id="date" 
+                            name="date" 
+                            class="form-input" 
+                            required
+                        >
+                    </div>
+
+                                         <!-- Color Selection -->
+                     <div class="form-group">
+                         <label class="form-label">Color</label>
+                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
+                             <div class="color-option" data-color="black">
+                                 <div class="color-btn color-black">Black</div>
+                             </div>
+                             <div class="color-option" data-color="white">
+                                 <div class="color-btn color-white">White</div>
+                             </div>
+                             <div class="color-option" data-color="beige">
+                                 <div class="color-btn color-beige">Beige</div>
+                             </div>
+                             <div class="color-option" data-color="dark-blue">
+                                 <div class="color-btn color-dark-blue">Dark Blue</div>
+                             </div>
+                             <div class="color-option" data-color="ash">
+                                 <div class="color-btn color-ash">Ash</div>
+                             </div>
+                             <div class="color-option" data-color="maroon">
+                                 <div class="color-btn color-maroon">Maroon</div>
+                             </div>
+                         </div>
+                         <input type="hidden" id="color" name="color" required>
+                     </div>
+
+                                         <!-- Size Selection -->
+                     <div class="form-group">
+                         <label class="form-label">Size</label>
+                         <div class="grid grid-cols-4 md:grid-cols-8 gap-2 mt-2">
+                             <div class="size-option" data-size="28">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">28</div>
+                             </div>
+                             <div class="size-option" data-size="30">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">30</div>
+                             </div>
+                             <div class="size-option" data-size="32">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">32</div>
+                             </div>
+                             <div class="size-option" data-size="34">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">34</div>
+                             </div>
+                             <div class="size-option" data-size="36">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">36</div>
+                             </div>
+                             <div class="size-option" data-size="38">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">38</div>
+                             </div>
+                             <div class="size-option" data-size="40">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">40</div>
+                             </div>
+                             <div class="size-option" data-size="42">
+                                 <div class="w-10 h-10 bg-gray-100 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-primary transition-all duration-200 flex items-center justify-center text-sm font-medium shadow-sm hover:shadow-md">42</div>
+                             </div>
+                         </div>
+                         <input type="hidden" id="size" name="size" required>
+                     </div>
+
+                    <!-- Quantity -->
+                    <div class="form-group">
+                        <label for="quantity" class="form-label">Quantity</label>
+                        <input 
+                            type="number" 
+                            id="quantity" 
+                            name="quantity" 
+                            class="form-input" 
+                            placeholder="Enter quantity"
+                            min="1"
+                            required
+                        >
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus mr-2"></i>
+                            Create Order
+                        </button>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+         // Color selection
+     document.querySelectorAll('.color-option').forEach(option => {
+         option.addEventListener('click', function() {
+             // Remove active class from all color options
+             document.querySelectorAll('.color-option div').forEach(div => {
+                 div.classList.remove('selected');
+             });
+             
+             // Add active class to selected color
+             const colorDiv = this.querySelector('div');
+             colorDiv.classList.add('selected');
+             
+             // Update hidden input
+             document.getElementById('color').value = this.dataset.color;
+         });
+     });
+
+         // Size selection
+     document.querySelectorAll('.size-option').forEach(option => {
+         option.addEventListener('click', function() {
+             // Remove active class from all size options
+             document.querySelectorAll('.size-option div').forEach(div => {
+                 div.classList.remove('border-primary', 'bg-primary', 'text-white');
+                 div.classList.add('border-gray-300', 'bg-gray-100');
+                 div.style.transform = 'scale(1)';
+                 div.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+             });
+             
+             // Add active class to selected size
+             const sizeDiv = this.querySelector('div');
+             sizeDiv.classList.remove('border-gray-300', 'bg-gray-100');
+             sizeDiv.classList.add('border-primary', 'bg-primary', 'text-white');
+             sizeDiv.style.transform = 'scale(1.05)';
+             sizeDiv.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+             
+             // Update hidden input
+             document.getElementById('size').value = this.dataset.size;
+         });
+     });
+
+    // Set today's date as default
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const color = document.getElementById('color').value;
+        const size = document.getElementById('size').value;
+        
+        if (!color) {
+            e.preventDefault();
+            alert('Please select a color');
+            return;
+        }
+        
+        if (!size) {
+            e.preventDefault();
+            alert('Please select a size');
+            return;
+        }
+    });
+</script>
+{% endblock %} 

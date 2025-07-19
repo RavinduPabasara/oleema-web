@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Add Work Log{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Add Work Log</h1>
+            <p class="card-subtitle">Record employee work progress</p>
+        </div>
+        
+        <div class="card-body">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left Section - Form -->
+                <div class="space-y-6">
+                    <form id="workLogForm" method="POST" class="space-y-4">
+                        <!-- Order Selection -->
+                        <div class="form-group">
+                            <label for="order_no" class="form-label">Order Number</label>
+                            <select id="order_no" name="order_no" class="form-select custom-select" required>
+                                <option value="" disabled selected>Select Order</option>
+                                <option value="BR-001">BR-001 (Black, 34)</option>
+                                <option value="BR-002">BR-002 (White, 36)</option>
+                                <option value="BR-003">BR-003 (Beige, 38)</option>
+                            </select>
+                        </div>
+
+                        <!-- Employee Selection -->
+                        <div class="form-group">
+                            <label for="employee" class="form-label">Employee</label>
+                            <select id="employee" name="employee" class="form-select custom-select" required>
+                                <option value="" disabled selected>Select Employee</option>
+                                <option value="john_doe">John Doe</option>
+                                <option value="jane_doe">Jane Doe</option>
+                                <option value="ben_show">Ben Show</option>
+                            </select>
+                        </div>
+
+                        <!-- Process Selection -->
+                        <div class="form-group">
+                            <label for="process" class="form-label">Process</label>
+                            <select id="process" name="process" class="form-select custom-select" required>
+                                <option value="" disabled selected>Select Process</option>
+                                <option value="sew_cups">Sew Cups</option>
+                                <option value="sew_lining">Sew Lining</option>
+                                <option value="add_hook">Add Hook</option>
+                            </select>
+                        </div>
+
+                        <!-- Quantity Input -->
+                        <div class="form-group">
+                            <label for="quantity" class="form-label">Quantity</label>
+                            <input type="number" id="quantity" name="quantity" class="form-input custom-input" min="1" placeholder="Enter quantity" required>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn btn-primary w-full flex items-center justify-center space-x-2 py-3">
+                            <i class="fas fa-plus"></i>
+                            <span>Add Work Log</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Section - Table -->
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-primary-lighter" id="workLogTable">
+                            <thead class="bg-primary-dark">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Order</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Employee</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Process</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-primary-lighter">
+                                <!-- Sample row for testing -->
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-dark">BR-001 (Black, 34)</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">John Doe</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Sew Cups</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Enhanced Select and Input Styling */
+    .custom-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding: 0.625rem 1rem;
+        border: 2px solid var(--primary-light);
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--primary-dark);
+        background-color: var(--white);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .custom-select:hover {
+        border-color: var(--primary);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+        background-color: var(--accent-yellow);
+    }
+
+    .custom-select:focus {
+        outline: none;
+        border-color: var(--primary-dark);
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        transform: translateY(-1px);
+        background-color: var(--accent-yellow);
+    }
+
+    .custom-input {
+        border: 2px solid var(--primary-light);
+        border-radius: 0.5rem;
+        padding: 0.625rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--primary-dark);
+        background-color: var(--white);
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+
+    .custom-input:hover {
+        border-color: var(--primary);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+        background-color: var(--accent-yellow);
+    }
+
+    .custom-input:focus {
+        outline: none;
+        border-color: var(--primary-dark);
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        transform: translateY(-1px);
+        background-color: var(--accent-yellow);
+    }
+
+    /* Table Styling */
+    #workLogTable {
+        background-color: var(--white);
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    #workLogTable thead {
+        background-color: var(--primary-dark);
+        color: var(--white);
+    }
+
+    #workLogTable tbody tr {
+        transition: all 0.2s ease;
+        border-bottom: 1px solid var(--primary-lighter);
+    }
+
+    #workLogTable tbody tr:hover {
+        background-color: var(--accent-yellow);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('workLogForm');
+    const table = document.getElementById('workLogTable').getElementsByTagName('tbody')[0];
+
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get selected values
+        const order = document.getElementById('order_no').options[document.getElementById('order_no').selectedIndex].text;
+        const employee = document.getElementById('employee').options[document.getElementById('employee').selectedIndex].text;
+        const process = document.getElementById('process').options[document.getElementById('process').selectedIndex].text;
+        const quantity = document.getElementById('quantity').value;
+
+        // Create new table row at the top
+        const newRow = table.insertRow(0);
+        
+        // Add the cells with data
+        const cells = [order, employee, process, quantity];
+        cells.forEach((text, index) => {
+            const cell = newRow.insertCell(index);
+            cell.className = "px-6 py-4 whitespace-nowrap text-sm" + (index === 0 ? " font-medium text-primary-dark" : " text-gray-700");
+            cell.textContent = text;
+        });
+
+        // Add animation effect
+        newRow.style.opacity = '0';
+        newRow.style.transform = 'translateY(-10px)';
+        newRow.style.transition = 'all 0.3s ease';
+        
+        // Trigger animation
+        requestAnimationFrame(() => {
+            newRow.style.opacity = '1';
+            newRow.style.transform = 'translateY(0)';
+        });
+
+        // Reset form
+        form.reset();
+    });
+});
+</script>
+{% endblock %} 

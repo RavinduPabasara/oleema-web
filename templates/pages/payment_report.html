@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Generate Payment Report{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Generate Payment Report</h1>
+            <p class="card-subtitle">View and generate employee payment reports</p>
+        </div>
+        
+        <div class="card-body">
+            <!-- Report Controls -->
+            <div class="max-w-2xl mx-auto mb-8">
+                <form id="reportForm" class="space-y-6">
+                    <!-- Employee Selection -->
+                    <div class="form-group">
+                        <label for="employee" class="form-label">Employee</label>
+                        <select id="employee" name="employee" class="form-select custom-select" required>
+                            <option value="" disabled selected>Select Employee</option>
+                            <option value="john_doe">John Doe</option>
+                            <option value="jane_doe">Jane Doe</option>
+                            <option value="ben_show">Ben Show</option>
+                        </select>
+                    </div>
+
+                    <!-- Month and Year Selection -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="form-group">
+                            <label for="month" class="form-label">Month</label>
+                            <select id="month" name="month" class="form-select custom-select" required>
+                                <option value="" disabled selected>Select Month</option>
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="year" class="form-label">Year</label>
+                            <select id="year" name="year" class="form-select custom-select" required>
+                                <option value="" disabled selected>Select Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button type="submit" class="btn btn-primary w-full flex items-center justify-center space-x-2 py-3">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                        <span>Generate Report</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Report Preview -->
+            <div id="reportPreview" class="bg-white rounded-lg shadow-lg p-4 w-full">
+                <!-- Report Header -->
+                <div class="text-center mb-4">
+                    <h2 class="text-2xl font-bold text-primary-dark mb-2">Payment Report</h2>
+                    <p class="text-gray-600">John Doe - March 2024</p>
+                </div>
+
+                <!-- Daily Payments Table -->
+                <div class="overflow-x-auto rounded-lg border border-primary-lighter mb-4">
+                    <table class="w-full divide-y divide-primary-lighter">
+                        <thead class="bg-primary-dark">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" style="width: 20%">Date</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider" style="width: 60%">Work Details</th>
+                                <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider" style="width: 20%">Payment</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-primary-lighter">
+                            <!-- Sample entries with various scenarios -->
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 1, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Sew Cups - 45 pieces (Rs. 25/pc)</div>
+                                    <div>Add Hook - 30 pieces (Rs. 15/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 1,575.00</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 2, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Sew Lining - 55 pieces (Rs. 20/pc)</div>
+                                    <div>Sew Cups - 25 pieces (Rs. 25/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 1,725.00</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 3, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Add Hook - 80 pieces (Rs. 15/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 1,200.00</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 5, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Sew Cups - 60 pieces (Rs. 25/pc)</div>
+                                    <div>Sew Lining - 40 pieces (Rs. 20/pc)</div>
+                                    <div>Add Hook - 35 pieces (Rs. 15/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 2,725.00</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 6, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Sew Lining - 65 pieces (Rs. 20/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 1,300.00</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark">March 8, 2024</td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    <div>Sew Cups - 50 pieces (Rs. 25/pc)</div>
+                                    <div>Add Hook - 45 pieces (Rs. 15/pc)</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 text-right">Rs. 1,925.00</td>
+                            </tr>
+                        </tbody>
+                        <!-- Summary Section -->
+                        <tfoot>
+                            <tr class="bg-primary-lighter">
+                                <td class="px-4 py-3 text-xs font-medium text-primary-dark" colspan="2">
+                                    Total Pieces Completed:
+                                    <div class="mt-1">
+                                        <div>Sew Cups: 180 pieces</div>
+                                        <div>Sew Lining: 160 pieces</div>
+                                        <div>Add Hook: 190 pieces</div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-xs font-medium text-primary-dark text-right">
+                                    Process Totals:
+                                    <div class="mt-1">
+                                        <div>Rs. 4,500.00</div>
+                                        <div>Rs. 3,200.00</div>
+                                        <div>Rs. 2,850.00</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="bg-accent-yellow">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-primary-dark" colspan="2">Total Payment</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-primary-dark text-right">Rs. 10,450.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Print Button -->
+                <div class="text-center">
+                    <button type="button" class="btn btn-secondary inline-flex items-center space-x-2">
+                        <i class="fas fa-print"></i>
+                        <span>Print Report</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Enhanced Select Styling */
+    .custom-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding: 0.625rem 1rem;
+        border: 2px solid var(--primary-light);
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--primary-dark);
+        background-color: var(--white);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .custom-select:hover {
+        border-color: var(--primary);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(30, 58, 138, 0.1);
+        background-color: var(--accent-yellow);
+    }
+
+    .custom-select:focus {
+        outline: none;
+        border-color: var(--primary-dark);
+        box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        transform: translateY(-1px);
+        background-color: var(--accent-yellow);
+    }
+
+    /* Report Preview Styling */
+    #reportPreview {
+        display: block; /* Changed from none to block to always show for testing */
+        opacity: 1;
+        transform: translateY(0);
+        margin-top: 2rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('reportForm');
+    const preview = document.getElementById('reportPreview');
+    
+    // Set current month and year as default
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    const monthSelect = document.getElementById('month');
+    const yearSelect = document.getElementById('year');
+    
+    // Set defaults if options exist
+    if (monthSelect.querySelector(`option[value="${currentMonth}"]`)) {
+        monthSelect.value = currentMonth;
+    }
+    if (yearSelect.querySelector(`option[value="${currentYear}"]`)) {
+        yearSelect.value = currentYear;
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get selected values
+        const employee = document.getElementById('employee').options[document.getElementById('employee').selectedIndex].text;
+        const month = document.getElementById('month').options[document.getElementById('month').selectedIndex].text;
+        const year = document.getElementById('year').value;
+
+        // Update preview header
+        document.querySelector('#reportPreview h2').nextElementSibling.textContent = `${employee} - ${month} ${year}`;
+        
+        // Scroll to the report
+        preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+});
+</script>
+{% endblock %} 
