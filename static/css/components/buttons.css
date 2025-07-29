@@ -62,6 +62,17 @@
   transform: translateY(-1px);
 }
 
+.btn-danger {
+  background-color: var(--error);
+  color: var(--white);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
 .btn-icon {
   padding: 0.5rem;
   min-width: 44px;

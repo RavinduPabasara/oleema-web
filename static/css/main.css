@@ -112,12 +112,72 @@ body {
   background-color: var(--gray-50);
 }
 
+.bg-gray-100 {
+  background-color: var(--gray-100);
+}
+
+.bg-gray-200 {
+  background-color: var(--gray-200);
+}
+
 .bg-primary {
   background-color: var(--primary);
 }
 
 .bg-primary-dark {
   background-color: var(--primary-dark);
+}
+
+/* Color background utilities for order colors */
+.bg-black-500 {
+  background-color: #000000;
+}
+
+.bg-white-500 {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-300);
+}
+
+.bg-beige-500 {
+  background-color: #f5f5dc;
+}
+
+.bg-dark-blue-500 {
+  background-color: #1e3a8a;
+}
+
+.bg-ash-500 {
+  background-color: #9ca3af;
+}
+
+.bg-maroon-500 {
+  background-color: #991b1b;
+}
+
+/* Order color classes */
+.order-color-black {
+  background-color: #000000;
+}
+
+.order-color-white {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-300);
+}
+
+.order-color-beige {
+  background-color: #f5f5dc;
+}
+
+.order-color-dark-blue {
+  background-color: #1e3a8a;
+}
+
+.order-color-ash {
+  background-color: #9ca3af;
+}
+
+.order-color-maroon {
+  background-color: #991b1b;
 }
 
 /* Text color utilities */
@@ -160,6 +220,10 @@ body {
 
 .rounded-xl {
   border-radius: 0.75rem;
+}
+
+.rounded-full {
+  border-radius: 50%;
 }
 
 /* Shadow utilities */

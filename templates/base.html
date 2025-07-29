@@ -32,15 +32,27 @@
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('new_order') }}" class="sidebar-nav-link {% if request.endpoint == 'new_order' %}active{% endif %}">
-                            <i class="fas fa-plus-circle sidebar-nav-icon"></i>
-                            <span class="sidebar-nav-text">New Order</span>
+                        <a href="{{ url_for('orders') }}" class="sidebar-nav-link {% if request.endpoint in ['orders', 'new_order', 'view_order'] %}active{% endif %}">
+                            <i class="fas fa-shopping-cart sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Orders</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('work_log') }}" class="sidebar-nav-link {% if request.endpoint == 'work_log' %}active{% endif %}">
+                        <a href="{{ url_for('employees') }}" class="sidebar-nav-link {% if request.endpoint in ['employees', 'add_employee', 'edit_employee'] %}active{% endif %}">
+                            <i class="fas fa-users sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Employees</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('work_logs') }}" class="sidebar-nav-link {% if request.endpoint in ['work_logs', 'work_log'] %}active{% endif %}">
                             <i class="fas fa-clipboard-list sidebar-nav-icon"></i>
-                            <span class="sidebar-nav-text">Work Log</span>
+                            <span class="sidebar-nav-text">Work Logs</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('processes') }}" class="sidebar-nav-link {% if request.endpoint in ['processes', 'add_process'] %}active{% endif %}">
+                            <i class="fas fa-cogs sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Processes</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">

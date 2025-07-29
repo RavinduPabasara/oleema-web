@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Add Work Log - Oleema{% endblock %}
+{% block title %}Edit Work Log - Oleema{% endblock %}
 
 {% block content %}
 <div class="p-6">
     <!-- Header -->
     <div class="mb-8">
         <div class="flex items-center mb-4">
-            <a href="{{ url_for('dashboard') }}" class="text-primary hover:text-primary-dark mr-4">
+            <a href="{{ url_for('work_logs') }}" class="text-primary hover:text-primary-dark mr-4">
                 <i class="fas fa-arrow-left"></i>
             </a>
-            <h1 class="text-3xl font-bold text-gray-900">Add Work Log</h1>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Work Log</h1>
         </div>
-        <p class="text-gray-600">Record employee work progress and production activities</p>
+        <p class="text-gray-600">Update work log entry details</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -25,12 +25,12 @@
         {% endif %}
     {% endwith %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Left Section - Form -->
+    <!-- Work Log Form -->
+    <div class="max-w-2xl">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Record Work Progress</h3>
-                <p class="card-subtitle">Fill in the work details below</p>
+                <h3 class="card-title">Edit Work Log Entry</h3>
+                <p class="card-subtitle">Update the work log information below</p>
             </div>
             
             <div class="card-body">
@@ -39,9 +39,11 @@
                     <div class="form-group">
                         <label for="employee_id" class="form-label">Employee *</label>
                         <select id="employee_id" name="employee_id" class="form-select" required>
-                            <option value="" disabled selected>Select Employee</option>
+                            <option value="" disabled>Select Employee</option>
                             {% for employee in employees %}
-                            <option value="{{ employee.id }}">{{ employee.name }} ({{ employee.employee_id }})</option>
+                            <option value="{{ employee.id }}" {% if employee.id == work_log.employee_id %}selected{% endif %}>
+                                {{ employee.name }} ({{ employee.employee_id }})
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -50,9 +52,11 @@
                     <div class="form-group">
                         <label for="order_id" class="form-label">Order *</label>
                         <select id="order_id" name="order_id" class="form-select" required>
-                            <option value="" disabled selected>Select Order</option>
+                            <option value="" disabled>Select Order</option>
                             {% for order in orders %}
-                            <option value="{{ order.id }}">{{ order.order_no }} ({{ order.color }}, {{ order.size }}, Qty: {{ order.quantity }})</option>
+                            <option value="{{ order.id }}" {% if order.id == work_log.order_id %}selected{% endif %}>
+                                {{ order.order_no }} ({{ order.color }}, {{ order.size }}, Qty: {{ order.quantity }})
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -61,9 +65,11 @@
                     <div class="form-group">
                         <label for="process_id" class="form-label">Process *</label>
                         <select id="process_id" name="process_id" class="form-select" required>
-                            <option value="" disabled selected>Select Process</option>
+                            <option value="" disabled>Select Process</option>
                             {% for process in processes %}
-                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}">{{ process.name }} (LKR {{ "%.2f"|format(process.pay_rate) }}/piece)</option>
+                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}" {% if process.id == work_log.process_id %}selected{% endif %}>
+                                {{ process.name }} (LKR {{ "%.2f"|format(process.pay_rate) }}/piece)
+                            </option>
                             {% endfor %}
                         </select>
                         <p class="form-help">Select the manufacturing process performed</p>
@@ -77,7 +83,7 @@
                             id="date" 
                             name="date" 
                             class="form-input" 
-                            value="{{ today }}"
+                            value="{{ work_log.date.strftime('%Y-%m-%d') }}"
                             required
                         >
                     </div>
@@ -91,6 +97,7 @@
                             name="quantity" 
                             class="form-input" 
                             placeholder="Enter number of pieces"
+                            value="{{ work_log.quantity }}"
                             min="1"
                             required
                         >
@@ -102,10 +109,10 @@
                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-sm font-medium text-gray-700">Payment Preview:</span>
-                                <span class="text-lg font-bold text-primary" id="payment-preview">LKR 0.00</span>
+                                <span class="text-lg font-bold text-primary" id="payment-preview">LKR {{ "%.2f"|format(work_log.quantity * work_log.process.pay_rate) }}</span>
                             </div>
                             <div class="text-xs text-gray-500" id="payment-breakdown">
-                                Select process and enter quantity to see payment
+                                {{ work_log.quantity }} pieces × LKR {{ "%.2f"|format(work_log.process.pay_rate) }} per piece
                             </div>
                         </div>
                     </div>
@@ -119,15 +126,15 @@
                             rows="3"
                             class="form-input" 
                             placeholder="Any additional notes or comments..."
-                        ></textarea>
+                        >{{ work_log.notes or '' }}</textarea>
                         <p class="form-help">Optional: Add any special notes about this work</p>
                     </div>
 
-                    <!-- Submit Button -->
+                    <!-- Submit Buttons -->
                     <div class="flex gap-4 pt-4">
                         <button type="submit" id="submit-btn" class="btn btn-primary btn-lg flex-1">
-                            <i class="fas fa-plus mr-2"></i>
-                            Add Work Log
+                            <i class="fas fa-save mr-2"></i>
+                            Update Work Log
                         </button>
                         <a href="{{ url_for('work_logs') }}" class="btn btn-secondary btn-lg">
                             Cancel
@@ -136,63 +143,11 @@
                 </form>
             </div>
         </div>
-
-        <!-- Right Section - Recent Work Logs -->
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Recent Work Logs</h3>
-                <p class="card-subtitle">Latest work activities</p>
-            </div>
-            
-            <div class="card-body">
-                {% if recent_work_logs %}
-                <div class="space-y-4">
-                    {% for work_log in recent_work_logs %}
-                    <div class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-all duration-200">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm mr-3 shadow" style="min-width: 40px; min-height: 40px; width: 40px; height: 40px;">
-                                    {{ work_log.employee.name[0].upper() }}
-                                </div>
-                                <div>
-                                    <div class="font-medium text-gray-900">{{ work_log.employee.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ work_log.date.strftime('%m/%d') }}</div>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm font-medium text-primary">LKR {{ "%.2f"|format(work_log.quantity * work_log.process.pay_rate) }}</div>
-                                <div class="text-xs text-gray-500">{{ work_log.quantity }} pcs</div>
-                            </div>
-                        </div>
-                        
-                                                    <div class="text-sm text-gray-600">
-                                <div class="flex items-center justify-between">
-                                    <span>{{ work_log.order.order_no }}</span>
-                                    <span>{{ work_log.process.name }} (LKR {{ "%.2f"|format(work_log.process.pay_rate) }})</span>
-                                </div>
-                            </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow">
-                        <i class="fas fa-clipboard-list text-gray-400 text-xl"></i>
-                    </div>
-                    <p class="text-gray-500 text-sm">No recent work logs</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Set today's date as default
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
-    
     // Payment calculation
     const quantityInput = document.getElementById('quantity');
     const processSelect = document.getElementById('process_id');
@@ -226,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
     
     submitBtn.addEventListener('click', function(e) {
-        console.log('Work log submit button clicked!');
+        console.log('Edit work log submit button clicked!');
         console.log('Form data:', {
             employee_id: document.getElementById('employee_id').value,
             order_id: document.getElementById('order_id').value,
@@ -237,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Manually trigger form submission
-        console.log('Manually submitting work log form...');
+        console.log('Manually submitting edit work log form...');
         form.submit();
     });
 });

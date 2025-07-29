@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Employee - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('employees') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Employee</h1>
+        </div>
+        <p class="text-gray-600">Update employee information and settings</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Employee Form -->
+    <div class="max-w-2xl">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Edit Employee Information</h3>
+                <p class="card-subtitle">Update the employee details below</p>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" class="space-y-6">
+                    <!-- Employee ID (Read-only) -->
+                    <div class="form-group">
+                        <label for="employee_id" class="form-label">Employee ID</label>
+                        <input 
+                            type="text" 
+                            id="employee_id" 
+                            value="{{ employee.employee_id }}" 
+                            class="form-input bg-gray-50" 
+                            disabled
+                        >
+                        <p class="form-help">Employee ID cannot be changed</p>
+                    </div>
+
+                    <!-- Full Name -->
+                    <div class="form-group">
+                        <label for="name" class="form-label">Full Name *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            value="{{ employee.name }}"
+                            class="form-input" 
+                            placeholder="e.g., John Doe"
+                            required
+                        >
+                    </div>
+
+
+
+                    <!-- Active Status -->
+                    <div class="form-group">
+                        <label class="form-label">Employee Status</label>
+                        <div class="flex items-center">
+                            <input 
+                                type="checkbox" 
+                                id="is_active" 
+                                name="is_active" 
+                                {% if employee.is_active %}checked{% endif %}
+                                class="form-checkbox"
+                            >
+                            <label for="is_active" class="ml-2 text-sm text-gray-700">
+                                Active Employee
+                            </label>
+                        </div>
+                        <p class="form-help">Inactive employees won't appear in work log selections</p>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Employee
+                        </button>
+                        <a href="{{ url_for('employees') }}" class="btn btn-secondary btn-lg">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manual form submission trigger
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    submitBtn.addEventListener('click', function(e) {
+        console.log('Edit employee submit button clicked!');
+        console.log('Form data:', {
+            name: document.getElementById('name').value,
+            is_active: document.getElementById('is_active').checked
+        });
+        
+        // Manually trigger form submission
+        console.log('Manually submitting edit employee form...');
+        form.submit();
+    });
+});
+</script>
+{% endblock %} 

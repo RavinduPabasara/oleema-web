@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Process - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('processes') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Process</h1>
+        </div>
+        <p class="text-gray-600">Update manufacturing process details</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="max-w-2xl mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Edit Process: {{ process.name }}</h3>
+                <p class="card-subtitle">Update process information and pay rate</p>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" class="space-y-6">
+                    <!-- Process Name -->
+                    <div class="form-group">
+                        <label for="name" class="form-label">Process Name *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            class="form-input" 
+                            value="{{ process.name }}"
+                            placeholder="Enter process name"
+                            required
+                        >
+                        <p class="form-help">The name of the manufacturing process</p>
+                    </div>
+
+                    <!-- Pay Rate -->
+                    <div class="form-group">
+                        <label for="pay_rate" class="form-label">Pay Rate (LKR/piece) *</label>
+                        <input 
+                            type="number" 
+                            id="pay_rate" 
+                            name="pay_rate" 
+                            class="form-input" 
+                            value="{{ process.pay_rate }}"
+                            placeholder="Enter pay rate per piece"
+                            step="0.01"
+                            min="0"
+                            required
+                        >
+                        <p class="form-help">Payment amount per piece processed</p>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description" 
+                            rows="4"
+                            class="form-input" 
+                            placeholder="Enter process description..."
+                        >{{ process.description or '' }}</textarea>
+                        <p class="form-help">Optional: Detailed description of the process</p>
+                    </div>
+
+                    <!-- Active Status -->
+                    <div class="form-group">
+                        <div class="flex items-center">
+                            <input 
+                                type="checkbox" 
+                                id="is_active" 
+                                name="is_active" 
+                                class="form-checkbox"
+                                {% if process.is_active %}checked{% endif %}
+                            >
+                            <label for="is_active" class="form-label ml-2">Active Process</label>
+                        </div>
+                        <p class="form-help">Check to keep this process active, uncheck to deactivate</p>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg flex-1">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Process
+                        </button>
+                        <a href="{{ url_for('processes') }}" class="btn btn-secondary btn-lg">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manual form submission trigger
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    submitBtn.addEventListener('click', function(e) {
+        console.log('Edit process submit button clicked!');
+        console.log('Form data:', {
+            name: document.getElementById('name').value,
+            pay_rate: document.getElementById('pay_rate').value,
+            description: document.getElementById('description').value,
+            is_active: document.getElementById('is_active').checked
+        });
+        
+        // Manually trigger form submission
+        console.log('Manually submitting edit process form...');
+        form.submit();
+    });
+});
+</script>
+{% endblock %} 

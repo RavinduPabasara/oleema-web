@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Add Process - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('processes') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Add New Process</h1>
+        </div>
+        <p class="text-gray-600">Add a new manufacturing process to your production system</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Process Form -->
+    <div class="max-w-2xl">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Process Information</h3>
+                <p class="card-subtitle">Fill in the process details below</p>
+            </div>
+            
+            <div class="card-body">
+                <form method="POST" class="space-y-6">
+                    <!-- Process Name -->
+                    <div class="form-group">
+                        <label for="name" class="form-label">Process Name *</label>
+                        <input 
+                            type="text" 
+                            id="name" 
+                            name="name" 
+                            class="form-input" 
+                            placeholder="e.g., Cutting, Sewing, Finishing"
+                            required
+                        >
+                        <p class="form-help">Name of the manufacturing process</p>
+                    </div>
+
+                    <!-- Pay Rate -->
+                    <div class="form-group">
+                        <label for="pay_rate" class="form-label">Pay Rate (per piece) *</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">LKR</span>
+                            <input 
+                                type="number" 
+                                id="pay_rate" 
+                                name="pay_rate" 
+                                class="form-input pl-8" 
+                                placeholder="2.50"
+                                step="0.01"
+                                min="0"
+                                required
+                            >
+                        </div>
+                        <p class="form-help">Payment rate per piece for this process</p>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea 
+                            id="description" 
+                            name="description" 
+                            rows="3"
+                            class="form-input" 
+                            placeholder="Describe the process steps and requirements..."
+                        ></textarea>
+                        <p class="form-help">Optional description of the process</p>
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex gap-4 pt-4">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus mr-2"></i>
+                            Add Process
+                        </button>
+                        <a href="{{ url_for('processes') }}" class="btn btn-secondary btn-lg">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manual form submission trigger
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    submitBtn.addEventListener('click', function(e) {
+        console.log('Add process submit button clicked!');
+        console.log('Form data:', {
+            name: document.getElementById('name').value,
+            pay_rate: document.getElementById('pay_rate').value,
+            description: document.getElementById('description').value
+        });
+        
+        // Manually trigger form submission
+        console.log('Manually submitting add process form...');
+        form.submit();
+    });
+});
+</script>
+{% endblock %} 

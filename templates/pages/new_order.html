@@ -28,14 +28,21 @@
                     <!-- Order Number -->
                     <div class="form-group">
                         <label for="order_no" class="form-label">Order Number</label>
-                        <input 
-                            type="text" 
-                            id="order_no" 
-                            name="order_no" 
-                            class="form-input" 
-                            placeholder="e.g., BR-001"
-                            required
-                        >
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                id="order_no" 
+                                name="order_no" 
+                                class="form-input flex-1" 
+                                placeholder="e.g., BR-001"
+                                required
+                            >
+                            <button type="button" id="generate-order-no" class="btn btn-secondary">
+                                <i class="fas fa-magic mr-1"></i>
+                                Generate
+                            </button>
+                        </div>
+                        <p class="form-help">Enter a unique order number or use the generate button</p>
                     </div>
 
                     <!-- Date -->
@@ -120,15 +127,29 @@
                             min="1"
                             required
                         >
+                        <p class="form-help">Number of pieces to be produced</p>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="form-group">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea 
+                            id="notes" 
+                            name="notes" 
+                            rows="3"
+                            class="form-input" 
+                            placeholder="Any special instructions or notes..."
+                        ></textarea>
+                        <p class="form-help">Optional: Add any special instructions or notes</p>
                     </div>
 
                     <!-- Submit Button -->
                     <div class="flex gap-4 pt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">
                             <i class="fas fa-plus mr-2"></i>
                             Create Order
                         </button>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+                        <a href="{{ url_for('orders') }}" class="btn btn-secondary btn-lg">
                             Cancel
                         </a>
                     </div>
@@ -153,6 +174,7 @@
              
              // Update hidden input
              document.getElementById('color').value = this.dataset.color;
+             console.log('Color selected:', this.dataset.color);
          });
      });
 
@@ -176,28 +198,224 @@
              
              // Update hidden input
              document.getElementById('size').value = this.dataset.size;
+             console.log('Size selected:', this.dataset.size);
          });
      });
 
     // Set today's date as default
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
 
-    // Form validation
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const color = document.getElementById('color').value;
-        const size = document.getElementById('size').value;
+    // Generate order number functionality
+    document.getElementById('generate-order-no').addEventListener('click', function() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
         
-        if (!color) {
+        const generatedOrderNo = `ORD-${year}${month}${day}-${random}`;
+        orderNoInput.value = generatedOrderNo;
+        clearError(orderNoInput);
+        
+        // Check if this order number exists
+        fetch(`/api/check-order-number/${generatedOrderNo}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    // If exists, generate a new one
+                    this.click();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking order number:', error);
+            });
+    });
+
+    // Form validation and real-time feedback
+    const form = document.querySelector('form');
+    const colorInput = document.getElementById('color');
+    const sizeInput = document.getElementById('size');
+    const orderNoInput = document.getElementById('order_no');
+    const quantityInput = document.getElementById('quantity');
+    
+    console.log('Form elements found:', {
+        form: form,
+        colorInput: colorInput,
+        sizeInput: sizeInput,
+        orderNoInput: orderNoInput,
+        quantityInput: quantityInput
+    });
+    
+    // Real-time validation feedback
+    function showError(element, message) {
+        element.classList.add('error');
+        const errorDiv = element.parentNode.querySelector('.form-error') || document.createElement('div');
+        errorDiv.className = 'form-error';
+        errorDiv.textContent = message;
+        if (!element.parentNode.querySelector('.form-error')) {
+            element.parentNode.appendChild(errorDiv);
+        }
+    }
+    
+    function clearError(element) {
+        element.classList.remove('error');
+        const errorDiv = element.parentNode.querySelector('.form-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Validate order number
+    let orderNumberTimeout;
+    orderNoInput.addEventListener('input', function() {
+        clearTimeout(orderNumberTimeout);
+        
+        if (this.value.trim() === '') {
+            showError(this, 'Order number is required');
+        } else {
+            clearError(this);
+            
+            // Check if order number already exists
+            orderNumberTimeout = setTimeout(() => {
+                fetch(`/api/check-order-number/${this.value.trim()}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.exists) {
+                            showError(this, 'Order number already exists');
+                        } else {
+                            clearError(this);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking order number:', error);
+                    });
+            }, 500); // Debounce for 500ms
+        }
+    });
+    
+    // Validate quantity
+    quantityInput.addEventListener('input', function() {
+        const value = parseInt(this.value);
+        if (!value || value < 1) {
+            showError(this, 'Quantity must be at least 1');
+        } else {
+            clearError(this);
+        }
+    });
+    
+    // Form submission validation
+    console.log('Adding form submit event listener...');
+    form.addEventListener('submit', function(e) {
+        console.log('Form submission event triggered!');
+        console.log('Current form values:');
+        console.log('  - order_no:', orderNoInput.value);
+        console.log('  - date:', document.getElementById('date').value);
+        console.log('  - color:', colorInput.value);
+        console.log('  - size:', sizeInput.value);
+        console.log('  - quantity:', quantityInput.value);
+        console.log('  - notes:', document.getElementById('notes').value);
+        
+        let hasErrors = false;
+        
+        // Check color selection
+        if (!colorInput.value) {
             e.preventDefault();
-            alert('Please select a color');
-            return;
+            showError(document.querySelector('.color-option'), 'Please select a color');
+            hasErrors = true;
+            console.log('Color validation failed - no color selected');
+        } else {
+            console.log('Color validation passed');
         }
         
-        if (!size) {
+        // Check size selection
+        if (!sizeInput.value) {
             e.preventDefault();
-            alert('Please select a size');
-            return;
+            showError(document.querySelector('.size-option'), 'Please select a size');
+            hasErrors = true;
+            console.log('Size validation failed - no size selected');
+        } else {
+            console.log('Size validation passed');
         }
+        
+        // Check order number
+        if (!orderNoInput.value.trim()) {
+            e.preventDefault();
+            showError(orderNoInput, 'Order number is required');
+            hasErrors = true;
+            console.log('Order number validation failed - empty order number');
+        } else {
+            console.log('Order number validation passed');
+        }
+        
+        // Check quantity
+        const quantity = parseInt(quantityInput.value);
+        if (!quantity || quantity < 1) {
+            e.preventDefault();
+            showError(quantityInput, 'Quantity must be at least 1');
+            hasErrors = true;
+            console.log('Quantity validation failed - invalid quantity:', quantity);
+        } else {
+            console.log('Quantity validation passed');
+        }
+        
+        if (hasErrors) {
+            // Scroll to first error
+            const firstError = document.querySelector('.form-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            console.log('Form validation failed, preventing submission');
+            return false;
+        } else {
+            // Show loading state
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Order...';
+            console.log('Form validation passed, submitting...');
+            console.log('Form data:', {
+                order_no: orderNoInput.value,
+                date: document.getElementById('date').value,
+                color: colorInput.value,
+                size: sizeInput.value,
+                quantity: quantityInput.value,
+                notes: document.getElementById('notes').value
+            });
+            
+            // Force submit the form
+            console.log('Submitting form...');
+            return true;
+        }
+    });
+    
+    // Check for success message and reset form if needed
+    const successMessage = document.querySelector('.bg-green-100');
+    if (successMessage) {
+        // Clear form on success after a delay
+        setTimeout(() => {
+            form.reset();
+            // Reset color and size selections
+            document.querySelectorAll('.color-option div').forEach(div => {
+                div.classList.remove('selected');
+            });
+            document.querySelectorAll('.size-option div').forEach(div => {
+                div.classList.remove('border-primary', 'bg-primary', 'text-white');
+                div.classList.add('border-gray-300', 'bg-gray-100');
+                div.style.transform = 'scale(1)';
+                div.style.boxShadow = '0 1px 3px 0 rgba(0, 0, 0, 0.1)';
+            });
+            colorInput.value = '';
+            sizeInput.value = '';
+        }, 2000);
+    }
+    
+    // Submit button click handler
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.addEventListener('click', function(e) {
+        console.log('Submit button clicked!');
+        
+        // Manually trigger form submission since the form submit event isn't working
+        console.log('Manually submitting form...');
+        form.submit();
     });
 </script>
 {% endblock %} 
