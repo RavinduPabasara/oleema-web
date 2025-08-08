@@ -127,4 +127,45 @@ class OrderStatus(db.Model):
     order = db.relationship('Order', backref='status_history')
     
     def __repr__(self):
-        return f'<OrderStatus {self.order.order_no} - {self.status}>' 
+        return f'<OrderStatus {self.order.order_no} - {self.status}>'
+
+class Overage(db.Model):
+    """Overage tracking model"""
+    __tablename__ = 'overages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    process_id = db.Column(db.Integer, db.ForeignKey('processes.id'), nullable=False)
+    expected_units = db.Column(db.Integer, nullable=False)
+    actual_units = db.Column(db.Integer, nullable=False)
+    overage_units = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, resolved
+    resolved_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    resolution_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    order = db.relationship('Order', backref='overages')
+    process = db.relationship('Process', backref='overages')
+    resolver = db.relationship('User', backref='resolved_overages')
+    
+    def __repr__(self):
+        return f'<Overage {self.order.order_no} - {self.process.name} (+{self.overage_units})>'
+
+class WorkLogOverage(db.Model):
+    """Work log overage tracking - tracks which work logs contributed to overages"""
+    __tablename__ = 'work_log_overages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    overage_id = db.Column(db.Integer, db.ForeignKey('overages.id'), nullable=False)
+    work_log_id = db.Column(db.Integer, db.ForeignKey('work_logs.id'), nullable=False)
+    overage_units = db.Column(db.Integer, nullable=False)  # How many units from this work log contributed to overage
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    overage = db.relationship('Overage', backref='work_log_overages')
+    work_log = db.relationship('WorkLog', backref='overage_contributions')
+    
+    def __repr__(self):
+        return f'<WorkLogOverage {self.work_log.employee.name} - {self.overage_units} units>' 

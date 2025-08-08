@@ -61,6 +61,31 @@
                             <span class="sidebar-nav-text">Payment Report</span>
                         </a>
                     </li>
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('overages') }}" class="sidebar-nav-link {% if request.endpoint in ['overages', 'overage_detail', 'approve_overage'] %}active{% endif %}">
+                            <i class="fas fa-exclamation-triangle sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Overage Management</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Security Section -->
+            <div class="sidebar-nav-section">
+                <div class="sidebar-nav-title">Security</div>
+                <ul class="sidebar-nav-list">
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('backup') }}" class="sidebar-nav-link {% if request.endpoint == 'backup' %}active{% endif %}">
+                            <i class="fas fa-database sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Backup & Restore</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('change_password') }}" class="sidebar-nav-link {% if request.endpoint == 'change_password' %}active{% endif %}">
+                            <i class="fas fa-lock sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Change Password</span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </nav>

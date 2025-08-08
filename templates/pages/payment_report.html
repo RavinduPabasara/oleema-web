@@ -78,10 +78,16 @@
 
                 <!-- Generate Button -->
                 <div class="md:col-span-3">
-                    <button type="submit" id="submit-btn" class="btn btn-primary btn-lg w-full">
-                        <i class="fas fa-file-invoice-dollar mr-2"></i>
-                        Generate Report
-                    </button>
+                    <div class="flex gap-4">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg flex-1">
+                            <i class="fas fa-file-invoice-dollar mr-2"></i>
+                            Generate Report
+                        </button>
+                        <button type="submit" id="pdf-btn" formaction="{{ url_for('download_payment_report_pdf') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-download mr-2"></i>
+                            Download PDF
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -91,9 +97,17 @@
     {% if report_data %}
     <div class="card">
         <div class="card-header">
-            <div class="text-center">
-                <h3 class="card-title">Payment Report</h3>
-                <p class="card-subtitle">{{ report_data.employee.name }} ({{ report_data.employee.employee_id }}) - {{ report_data.month }}/{{ report_data.year }}</p>
+            <div class="flex justify-between items-center">
+                <div class="text-center flex-1">
+                    <h3 class="card-title">Payment Report</h3>
+                    <p class="card-subtitle">{{ report_data.employee.name }} ({{ report_data.employee.employee_id }}) - {{ report_data.month }}/{{ report_data.year }}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" id="download-pdf-btn" class="btn btn-success">
+                        <i class="fas fa-download mr-2"></i>
+                        Download PDF
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -185,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Manual form submission trigger
     const form = document.querySelector('form');
     const submitBtn = document.getElementById('submit-btn');
+    const pdfBtn = document.getElementById('pdf-btn');
     
     submitBtn.addEventListener('click', function(e) {
         console.log('Payment report submit button clicked!');
@@ -198,6 +213,98 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Manually submitting payment report form...');
         form.submit();
     });
+    
+    // PDF download button click handler
+    pdfBtn.addEventListener('click', function(e) {
+        console.log('PDF download button clicked!');
+        
+        // Validate form data before submitting
+        const employeeId = document.getElementById('employee_id').value;
+        const month = document.getElementById('month').value;
+        const year = document.getElementById('year').value;
+        
+        console.log('PDF form data:', {
+            employee_id: employeeId,
+            month: month,
+            year: year
+        });
+        
+        if (!employeeId || !month || !year) {
+            e.preventDefault();
+            alert('Please fill in all fields before downloading PDF');
+            return false;
+        }
+        
+        // Create a temporary form for PDF download
+        const pdfForm = document.createElement('form');
+        pdfForm.method = 'POST';
+        pdfForm.action = '{{ url_for("download_payment_report_pdf") }}';
+        
+        // Add form fields
+        const employeeInput = document.createElement('input');
+        employeeInput.type = 'hidden';
+        employeeInput.name = 'employee_id';
+        employeeInput.value = employeeId;
+        pdfForm.appendChild(employeeInput);
+        
+        const monthInput = document.createElement('input');
+        monthInput.type = 'hidden';
+        monthInput.name = 'month';
+        monthInput.value = month;
+        pdfForm.appendChild(monthInput);
+        
+        const yearInput = document.createElement('input');
+        yearInput.type = 'hidden';
+        yearInput.name = 'year';
+        yearInput.value = year;
+        pdfForm.appendChild(yearInput);
+        
+        // Submit the PDF form
+        document.body.appendChild(pdfForm);
+        pdfForm.submit();
+        document.body.removeChild(pdfForm);
+        
+        console.log('PDF download form submitted');
+    });
+    
+    // PDF download button in report results section
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', function(e) {
+            console.log('Download PDF button in report results clicked!');
+            
+            // Create a temporary form for PDF download with the current report data
+            const pdfForm = document.createElement('form');
+            pdfForm.method = 'POST';
+            pdfForm.action = '{{ url_for("download_payment_report_pdf") }}';
+            
+            // Add form fields with current report data
+            const employeeInput = document.createElement('input');
+            employeeInput.type = 'hidden';
+            employeeInput.name = 'employee_id';
+            employeeInput.value = '{{ report_data.employee.id if report_data else "" }}';
+            pdfForm.appendChild(employeeInput);
+            
+            const monthInput = document.createElement('input');
+            monthInput.type = 'hidden';
+            monthInput.name = 'month';
+            monthInput.value = '{{ report_data.month if report_data else "" }}';
+            pdfForm.appendChild(monthInput);
+            
+            const yearInput = document.createElement('input');
+            yearInput.type = 'hidden';
+            yearInput.name = 'year';
+            yearInput.value = '{{ report_data.year if report_data else "" }}';
+            pdfForm.appendChild(yearInput);
+            
+            // Submit the PDF form
+            document.body.appendChild(pdfForm);
+            pdfForm.submit();
+            document.body.removeChild(pdfForm);
+            
+            console.log('PDF download form submitted from report results');
+        });
+    }
 });
 </script>
 {% endblock %} 

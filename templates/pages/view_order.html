@@ -165,9 +165,9 @@
                     <div class="space-y-4">
                         <div class="bg-blue-50 rounded-lg p-4 text-center">
                             <div class="text-2xl font-bold text-blue-900 mb-1">
-                                {{ total_processed }}
+                                {{ order.quantity }}
                             </div>
-                            <div class="text-sm text-blue-700">Pieces Processed</div>
+                            <div class="text-sm text-blue-700">Order Quantity</div>
                         </div>
                         
                         <div class="bg-green-50 rounded-lg p-4 text-center">
@@ -185,18 +185,25 @@
                         </div>
                     </div>
                     
-                    <!-- Progress Bar -->
+                    <!-- Progress by Process -->
                     <div>
-                        <div class="flex justify-between text-sm text-gray-600 mb-2">
-                            <span>Progress</span>
-                            <span>{{ "%.0f"|format(progress_percent) }}%</span>
+                        <div class="text-sm text-gray-600 mb-3">Progress by Process</div>
+                        {% for process_name, progress in process_progress.items() %}
+                        {% if progress.total > 0 %}
+                        <div class="mb-3">
+                            <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>{{ process_name }}</span>
+                                <span>{{ "%.0f"|format(progress.completion) }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                <div class="bg-primary h-1.5 rounded-full" style="width: {{ progress.completion }}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                {{ progress.total }} of {{ order.quantity }} pieces
+                            </div>
                         </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-primary h-2 rounded-full" style="width: {{ progress_percent }}%"></div>
-                        </div>
-                        <div class="text-xs text-gray-500 mt-1">
-                            {{ total_processed }} of {{ order.quantity }} pieces completed
-                        </div>
+                        {% endif %}
+                        {% endfor %}
                     </div>
                     
                     <!-- Quick Actions -->

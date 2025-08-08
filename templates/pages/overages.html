@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Overage Management - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Overage Management</h1>
+                <p class="text-gray-600">Track and resolve production overages</p>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Pending Overages -->
+    <div class="card mb-8">
+        <div class="card-header">
+            <h3 class="card-title">Pending Overages</h3>
+            <p class="card-subtitle">Orders with overages that need attention</p>
+        </div>
+        
+        <div class="card-body">
+            {% if pending_overages %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for overage in pending_overages %}
+                    <div class="border border-red-200 rounded-lg p-6 bg-red-50 hover:border-red-300 transition-all duration-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">{{ overage.order.order_no }}</h4>
+                                <p class="text-sm text-gray-500">{{ overage.order.date.strftime('%b %d, %Y') }}</p>
+                            </div>
+                            <span class="px-3 py-1 text-sm font-medium rounded-full bg-red-100 text-red-800">
+                                +{{ overage.overage_units }} over
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-2 mb-4">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Process:</span>
+                                <span class="font-medium text-gray-900">{{ overage.process.name }}</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Expected:</span>
+                                <span class="font-medium text-gray-900">{{ overage.expected_units }} units</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Actual:</span>
+                                <span class="font-medium text-red-600">{{ overage.actual_units }} units</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Overage:</span>
+                                <span class="font-medium text-red-600">{{ overage.overage_units }} units</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <a href="{{ url_for('overage_detail', overage_id=overage.id) }}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-eye mr-1"></i>
+                                View Details
+                            </a>
+                            <span class="text-xs text-gray-500">
+                                {{ overage.created_at.strftime('%b %d, %Y') }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-12">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check text-green-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Pending Overages</h3>
+                    <p class="text-gray-500">All production orders are within their quantity limits.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resolved Overages -->
+    {% if resolved_overages %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recently Resolved Overages</h3>
+            <p class="card-subtitle">Overages resolved in the last 30 days</p>
+        </div>
+        
+        <div class="card-body">
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-8 py-4 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Order</th>
+                            <th class="px-8 py-4 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Process</th>
+                            <th class="px-8 py-4 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Overage</th>
+                            <th class="px-8 py-4 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Resolved By</th>
+                            <th class="px-8 py-4 text-left text-sm font-medium text-gray-700 border-b border-gray-200">Resolved Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for overage in resolved_overages %}
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="px-8 py-4">
+                                <div class="text-sm font-medium text-gray-900">{{ overage.order.order_no }}</div>
+                                <div class="text-sm text-gray-500">{{ overage.order.date.strftime('%b %d') }}</div>
+                            </td>
+                            <td class="px-8 py-4 text-sm text-gray-900">
+                                {{ overage.process.name }}
+                            </td>
+                            <td class="px-8 py-4">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    +{{ overage.overage_units }}
+                                </span>
+                            </td>
+                            <td class="px-8 py-4 text-sm text-gray-900">
+                                {{ overage.resolver.username if overage.resolver else 'Unknown' }}
+                            </td>
+                            <td class="px-8 py-4 text-sm text-gray-500">
+                                {{ overage.resolved_at.strftime('%b %d') if overage.resolved_at else 'N/A' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

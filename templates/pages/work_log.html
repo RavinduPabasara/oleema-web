@@ -97,6 +97,23 @@
                         <p class="form-help">Number of pieces processed</p>
                     </div>
 
+                    <!-- Progress Tracking -->
+                    <div class="form-group" id="progress-section" style="display: none;">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-blue-700">Current Progress:</span>
+                                <span class="text-lg font-bold text-blue-900" id="progress-total">0 / 0 units</span>
+                            </div>
+                            <div class="text-xs text-blue-600" id="progress-breakdown">
+                                Select order and process to see current progress
+                            </div>
+                            <div class="mt-2 text-xs text-blue-600" id="progress-warning" style="display: none;">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                <span id="warning-text">This will create an overage</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Payment Preview -->
                     <div class="form-group">
                         <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -193,11 +210,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('date').value = today;
     
-    // Payment calculation
+    // Get elements
     const quantityInput = document.getElementById('quantity');
     const processSelect = document.getElementById('process_id');
+    const orderSelect = document.getElementById('order_id');
     const paymentPreview = document.getElementById('payment-preview');
     const paymentBreakdown = document.getElementById('payment-breakdown');
+    const progressSection = document.getElementById('progress-section');
+    const progressTotal = document.getElementById('progress-total');
+    const progressBreakdown = document.getElementById('progress-breakdown');
+    const progressWarning = document.getElementById('progress-warning');
+    const warningText = document.getElementById('warning-text');
+    
+    // Store order/process totals from backend
+    const orderProcessTotals = JSON.parse('{{ order_process_totals|tojson }}');
+    
+    function updateProgress() {
+        const orderId = orderSelect.value;
+        const processId = processSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (orderId && processId) {
+            // Get order quantity from the selected option
+            const orderOption = orderSelect.options[orderSelect.selectedIndex];
+            const orderText = orderOption.textContent;
+            const orderQuantity = parseInt(orderText.match(/Qty: (\d+)/)?.[1] || 0);
+            
+            // Get current total for this order/process combination
+            const key = `${orderId}-${processId}`;
+            const currentTotal = orderProcessTotals[key] || 0;
+            const newTotal = currentTotal + quantity;
+            
+            progressSection.style.display = 'block';
+            progressTotal.textContent = `${newTotal} / ${orderQuantity} units`;
+            progressBreakdown.textContent = `Current: ${currentTotal} units + New: ${quantity} units`;
+            
+            // Check for overage
+            if (newTotal > orderQuantity) {
+                const overage = newTotal - orderQuantity;
+                progressWarning.style.display = 'block';
+                warningText.textContent = `This will create an overage of ${overage} units`;
+                progressSection.querySelector('.bg-blue-50').classList.remove('bg-blue-50', 'border-blue-200');
+                progressSection.querySelector('.bg-blue-50').classList.add('bg-red-50', 'border-red-200');
+            } else {
+                progressWarning.style.display = 'none';
+                progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.remove('bg-red-50', 'border-red-200');
+                progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.add('bg-blue-50', 'border-blue-200');
+            }
+        } else {
+            progressSection.style.display = 'none';
+        }
+    }
     
     function updatePaymentPreview() {
         const quantity = parseInt(quantityInput.value) || 0;
@@ -215,11 +278,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    quantityInput.addEventListener('input', updatePaymentPreview);
-    processSelect.addEventListener('change', updatePaymentPreview);
+    // Event listeners
+    quantityInput.addEventListener('input', function() {
+        updatePaymentPreview();
+        updateProgress();
+    });
     
-    // Initial calculation
+    processSelect.addEventListener('change', function() {
+        updatePaymentPreview();
+        updateProgress();
+    });
+    
+    orderSelect.addEventListener('change', updateProgress);
+    
+    // Initial calculations
     updatePaymentPreview();
+    updateProgress();
     
     // Manual form submission trigger
     const form = document.querySelector('form');
