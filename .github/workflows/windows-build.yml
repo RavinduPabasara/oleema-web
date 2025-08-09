@@ -40,15 +40,8 @@ jobs:
           }
 
       - name: Build with PyInstaller
-        # On Windows, PyInstaller --add-data uses a semicolon to separate src;dest
-        run: |
-          pyinstaller --noconfirm --clean \
-            --name Oleema \
-            --add-data "oleema.db;." \
-            --add-data "templates;templates" \
-            --add-data "static;static" \
-            --add-data "instance;instance" \
-            app.py
+        # On Windows, use single-line to avoid PowerShell parsing issues
+        run: pyinstaller --noconfirm --clean --name Oleema --add-data "oleema.db;." --add-data "templates;templates" --add-data "static;static" --add-data "instance;instance" app.py
 
       - name: Archive artifact
         run: |
