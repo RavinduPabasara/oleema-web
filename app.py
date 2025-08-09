@@ -2,10 +2,11 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from models import db, User, Employee, Process, Order, WorkLog, Payment, OrderStatus, Overage, WorkLogOverage
 import os
+import sys
 import shutil
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, inspect
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -15,7 +16,18 @@ from io import BytesIO
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///oleema.db'
+
+# Resolve base directory robustly for both normal and frozen (PyInstaller) runs
+def _resolve_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = _resolve_base_dir()
+DATABASE_PATH = os.path.join(BASE_DIR, 'oleema.db')
+INSTANCE_DB_PATH = os.path.join(BASE_DIR, 'instance', 'oleema.db')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Session timeout configuration (2 hours = 7200 seconds)
@@ -24,8 +36,37 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 # Initialize database
 db.init_app(app)
 
+# Ensure database exists and is initialized (first run handling)
+with app.app_context():
+    try:
+        # Ensure containing directory exists
+        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+    except Exception:
+        pass
+    try:
+        existing_tables = set(inspect(db.engine).get_table_names())
+        if 'users' not in existing_tables:
+            db.create_all()
+            # Seed default admin
+            if not User.query.first():
+                admin_user = User(username='admin', role='admin')
+                admin_user.set_password('admin123')
+                db.session.add(admin_user)
+            # Seed sample processes
+            if not Process.query.first():
+                processes = [
+                    Process(name='Cutting', pay_rate=5.0, description='Fabric cutting process'),
+                    Process(name='Sewing', pay_rate=8.0, description='Garment sewing process'),
+                    Process(name='Finishing', pay_rate=3.0, description='Final finishing process'),
+                    Process(name='Quality Check', pay_rate=4.0, description='Quality control process'),
+                ]
+                db.session.add_all(processes)
+            db.session.commit()
+    except Exception as e:
+        print(f"Database initialization check failed: {e}")
+
 # Create backup directory if it doesn't exist
-BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backups')
+BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
 if not os.path.exists(BACKUP_DIR):
     os.makedirs(BACKUP_DIR)
 
@@ -37,7 +78,7 @@ def create_backup():
         backup_path = os.path.join(BACKUP_DIR, backup_filename)
         
         # Copy the database file
-        shutil.copy2('instance/oleema.db', backup_path)
+        shutil.copy2(DATABASE_PATH, backup_path)
         
         # Keep only last 7 days of backups
         cleanup_old_backups()
@@ -1223,7 +1264,7 @@ def backup():
                     create_backup()
                     
                     # Restore the selected backup
-                    shutil.copy2(backup_file, 'instance/oleema.db')
+                    shutil.copy2(backup_file, DATABASE_PATH)
                     flash('Database restored successfully!', 'success')
                 except Exception as e:
                     flash(f'Restore failed: {str(e)}', 'error')
