@@ -32,11 +32,16 @@ jobs:
         run: |
           python init_db.py
 
-      - name: Copy DB into instance for backup/restore features
+      - name: Ensure DB files exist for packaging
         run: |
+          # If a seeded root DB exists, mirror it into instance
           if (Test-Path .\oleema.db) {
             New-Item -ItemType Directory -Force -Path instance | Out-Null
             Copy-Item .\oleema.db .\instance\oleema.db -Force
+          }
+          # If root DB is missing but instance DB exists (from repo), mirror instance to root
+          elseif (Test-Path .\instance\oleema.db) {
+            Copy-Item .\instance\oleema.db .\oleema.db -Force
           }
 
       - name: Build with PyInstaller
