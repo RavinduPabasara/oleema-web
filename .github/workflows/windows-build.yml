@@ -24,6 +24,15 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Vendor Font Awesome assets (for offline icons)
+        run: |
+          New-Item -ItemType Directory -Force -Path static\vendor\fontawesome\css | Out-Null
+          New-Item -ItemType Directory -Force -Path static\vendor\fontawesome\webfonts | Out-Null
+          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" -OutFile static\vendor\fontawesome\css\all.min.css
+          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-brands-400.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-brands-400.woff2
+          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-regular-400.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-regular-400.woff2
+          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-solid-900.woff2
+
       - name: Ensure instance directory
         run: |
           New-Item -ItemType Directory -Force -Path instance | Out-Null
