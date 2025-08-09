@@ -1,3 +1,70 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Ensure instance directory
+        run: |
+          python - <<'PY'
+          import os
+          os.makedirs('instance', exist_ok=True)
+          PY
+
+      - name: Initialize database (seed admin/processes)
+        run: |
+          python init_db.py
+
+      - name: Copy DB into instance for backup/restore features
+        run: |
+          python - <<'PY'
+          import os, shutil
+          if os.path.exists('oleema.db'):
+              os.makedirs('instance', exist_ok=True)
+              shutil.copy2('oleema.db', os.path.join('instance', 'oleema.db'))
+          PY
+
+      - name: Build with PyInstaller
+        # On Windows, PyInstaller --add-data uses a semicolon to separate src;dest
+        run: |
+          pyinstaller --noconfirm --clean \
+            --name Oleema \
+            --add-data "oleema.db;." \
+            --add-data "templates;templates" \
+            --add-data "static;static" \
+            --add-data "instance;instance" \
+            app.py
+
+      - name: Archive artifact
+        run: |
+          powershell -command "Compress-Archive -Path 'dist/Oleema/*' -DestinationPath 'Oleema-Windows.zip'"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Oleema-Windows
+          path: Oleema-Windows.zip
+
 name: Windows Build (PyInstaller)
 
 on:
