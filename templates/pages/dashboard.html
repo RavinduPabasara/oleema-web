@@ -10,7 +10,8 @@
             <i class="fas fa-clock text-yellow-600 mr-3"></i>
             <div>
                 <p class="text-sm font-medium text-yellow-800">Session Timeout Warning</p>
-                <p class="text-xs text-yellow-700">Your session will expire in <span id="timeoutCountdown">--</span> minutes. Click anywhere to extend your session.</p>
+                <p class="text-xs text-yellow-700">Your session will expire in <span id="timeoutCountdown">--</span>
+                    minutes. Click anywhere to extend your session.</p>
             </div>
         </div>
     </div>
@@ -24,7 +25,8 @@
     <!-- Main Action Buttons -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <!-- Add New Order -->
-        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200" onclick="window.location.href='{{ url_for('new_order') }}'">
+        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200"
+            onclick="window.location.href='{{ url_for('new_order') }}'">
             <div class="feature-icon">
                 <i class="fas fa-plus"></i>
             </div>
@@ -33,7 +35,8 @@
         </div>
 
         <!-- Add Work Log -->
-        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200" onclick="window.location.href='{{ url_for('work_log') }}'">
+        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200"
+            onclick="window.location.href='{{ url_for('work_log') }}'">
             <div class="feature-icon">
                 <i class="fas fa-clipboard-list"></i>
             </div>
@@ -42,12 +45,26 @@
         </div>
 
         <!-- Generate Payment Reports -->
-        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200" onclick="window.location.href='{{ url_for('payment_report') }}'">
+        <div class="card feature-card cursor-pointer hover:shadow-lg transition-all duration-200"
+            onclick="window.location.href='{{ url_for('payment_report') }}'">
             <div class="feature-icon">
                 <i class="fas fa-file-invoice-dollar"></i>
             </div>
             <div class="feature-title">Generate Payment Reports</div>
             <div class="feature-description">Create detailed payment reports and analytics</div>
+        </div>
+    </div>
+
+    <!-- Production Chart -->
+    <div class="card mb-8">
+        <div class="card-header">
+            <h3 class="card-title">Production Overview</h3>
+            <p class="card-subtitle">Daily production output for the last 7 days</p>
+        </div>
+        <div class="card-body">
+            <div class="relative h-64">
+                <canvas id="productionChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -68,30 +85,31 @@
         <div class="card-body">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% if recent_orders %}
-                    {% for order in recent_orders %}
-                        <div class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-colors">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-medium text-gray-900">{{ order.order_no }}</span>
-                                <span class="text-xs 
+                {% for order in recent_orders %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-colors">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-gray-900">{{ order.order_no }}</span>
+                        <span class="text-xs 
                                     {% if order.status == 'pending' %}bg-yellow-100 text-yellow-800
                                     {% elif order.status == 'in_progress' %}bg-green-100 text-green-800
                                     {% elif order.status == 'completed' %}bg-blue-100 text-blue-800
                                     {% else %}bg-gray-100 text-gray-800{% endif %} 
                                     px-2 py-1 rounded-full">{{ order.status|title|replace('_', ' ') }}</span>
-                            </div>
-                            <div class="text-sm text-gray-600 mb-2">{{ order.color }} - {{ order.size }} - {{ order.quantity }} pieces</div>
-                            <div class="flex items-center text-xs text-gray-500">
-                                <i class="fas fa-clock mr-1"></i>
-                                <span>Created: {{ order.created_at.strftime('%b %d, %Y') }}</span>
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="col-span-full text-center py-8">
-                        <i class="fas fa-shopping-cart text-gray-400 text-4xl mb-4"></i>
-                        <p class="text-gray-500">No orders found</p>
-                        <p class="text-sm text-gray-400">Create your first order to see it here</p>
                     </div>
+                    <div class="text-sm text-gray-600 mb-2">{{ order.color }} - {{ order.size }} - {{ order.quantity }}
+                        pieces</div>
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-clock mr-1"></i>
+                        <span>Created: {{ order.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="col-span-full text-center py-8">
+                    <i class="fas fa-shopping-cart text-gray-400 text-4xl mb-4"></i>
+                    <p class="text-gray-500">No orders found</p>
+                    <p class="text-sm text-gray-400">Create your first order to see it here</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -105,53 +123,53 @@
 </div>
 
 <script>
-// Session timeout warning functionality
-let sessionTimeout;
-let warningTimeout;
+    // Session timeout warning functionality
+    let sessionTimeout;
+    let warningTimeout;
 
-function resetSessionTimer() {
-    // Clear existing timers
-    clearTimeout(sessionTimeout);
-    clearTimeout(warningTimeout);
-    
-    // Hide warning
-    document.getElementById('sessionWarning').classList.add('hidden');
-    
-    // Set new timers
-    // Show warning 5 minutes before timeout (115 minutes)
-    warningTimeout = setTimeout(() => {
-        document.getElementById('sessionWarning').classList.remove('hidden');
-        updateCountdown();
-    }, 115 * 60 * 1000); // 115 minutes
-    
-    // Session timeout after 2 hours
-    sessionTimeout = setTimeout(() => {
-        window.location.href = '{{ url_for("logout") }}';
-    }, 120 * 60 * 1000); // 120 minutes
-}
+    function resetSessionTimer() {
+        // Clear existing timers
+        clearTimeout(sessionTimeout);
+        clearTimeout(warningTimeout);
 
-function updateCountdown() {
-    const countdownElement = document.getElementById('timeoutCountdown');
-    let minutesLeft = 5;
-    
-    const countdown = setInterval(() => {
-        countdownElement.textContent = minutesLeft;
-        minutesLeft--;
-        
-        if (minutesLeft < 0) {
-            clearInterval(countdown);
+        // Hide warning
+        document.getElementById('sessionWarning').classList.add('hidden');
+
+        // Set new timers
+        // Show warning 5 minutes before timeout (115 minutes)
+        warningTimeout = setTimeout(() => {
+            document.getElementById('sessionWarning').classList.remove('hidden');
+            updateCountdown();
+        }, 115 * 60 * 1000); // 115 minutes
+
+        // Session timeout after 2 hours
+        sessionTimeout = setTimeout(() => {
             window.location.href = '{{ url_for("logout") }}';
-        }
-    }, 60000); // Update every minute
-}
+        }, 120 * 60 * 1000); // 120 minutes
+    }
 
-// Reset timer on user activity
-document.addEventListener('click', resetSessionTimer);
-document.addEventListener('keypress', resetSessionTimer);
-document.addEventListener('scroll', resetSessionTimer);
+    function updateCountdown() {
+        const countdownElement = document.getElementById('timeoutCountdown');
+        let minutesLeft = 5;
 
-// Initialize timer when page loads
-document.addEventListener('DOMContentLoaded', resetSessionTimer);
+        const countdown = setInterval(() => {
+            countdownElement.textContent = minutesLeft;
+            minutesLeft--;
+
+            if (minutesLeft < 0) {
+                clearInterval(countdown);
+                window.location.href = '{{ url_for("logout") }}';
+            }
+        }, 60000); // Update every minute
+    }
+
+    // Reset timer on user activity
+    document.addEventListener('click', resetSessionTimer);
+    document.addEventListener('keypress', resetSessionTimer);
+    document.addEventListener('scroll', resetSessionTimer);
+
+    // Initialize timer when page loads
+    document.addEventListener('DOMContentLoaded', resetSessionTimer);
 </script>
 
 {% endblock %}

@@ -16,13 +16,14 @@
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     <!-- Report Controls -->
@@ -31,7 +32,7 @@
             <h3 class="card-title">Generate Payment Report</h3>
             <p class="card-subtitle">Select employee and time period</p>
         </div>
-        
+
         <div class="card-body">
             <form method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Employee Selection -->
@@ -83,9 +84,15 @@
                             <i class="fas fa-file-invoice-dollar mr-2"></i>
                             Generate Report
                         </button>
-                        <button type="submit" id="pdf-btn" formaction="{{ url_for('download_payment_report_pdf') }}" class="btn btn-success btn-lg">
+                        <button type="submit" id="pdf-btn" formaction="{{ url_for('download_payment_report_pdf') }}"
+                            class="btn btn-success btn-lg">
                             <i class="fas fa-download mr-2"></i>
                             Download PDF
+                        </button>
+                        <button type="submit" id="csv-btn" formaction="{{ url_for('download_payment_report_csv') }}"
+                            class="btn btn-info btn-lg text-white">
+                            <i class="fas fa-file-csv mr-2"></i>
+                            Export CSV
                         </button>
                     </div>
                 </div>
@@ -100,17 +107,22 @@
             <div class="flex justify-between items-center">
                 <div class="text-center flex-1">
                     <h3 class="card-title">Payment Report</h3>
-                    <p class="card-subtitle">{{ report_data.employee.name }} ({{ report_data.employee.employee_id }}) - {{ report_data.month }}/{{ report_data.year }}</p>
+                    <p class="card-subtitle">{{ report_data.employee.name }} ({{ report_data.employee.employee_id }}) -
+                        {{ report_data.month }}/{{ report_data.year }}</p>
                 </div>
                 <div class="flex gap-2">
                     <button type="button" id="download-pdf-btn" class="btn btn-success">
                         <i class="fas fa-download mr-2"></i>
                         Download PDF
                     </button>
+                    <button type="button" id="download-csv-btn" class="btn btn-info text-white">
+                        <i class="fas fa-file-csv mr-2"></i>
+                        Export CSV
+                    </button>
                 </div>
             </div>
         </div>
-        
+
         <div class="card-body">
             <!-- Summary Stats -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -119,7 +131,8 @@
                     <div class="text-sm text-blue-700">Total Pieces</div>
                 </div>
                 <div class="bg-yellow-50 rounded-lg p-6 text-center">
-                    <div class="text-3xl font-bold text-yellow-900 mb-2">LKR {{ "%.2f"|format(report_data.total_payment) }}</div>
+                    <div class="text-3xl font-bold text-yellow-900 mb-2">LKR {{ "%.2f"|format(report_data.total_payment)
+                        }}</div>
                     <div class="text-sm text-yellow-700">Total Payment</div>
                 </div>
             </div>
@@ -130,12 +143,19 @@
                 <table class="w-full">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-xs font-medium text-gray-500 uppercase tracking-wider">Process</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pieces</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate/Piece</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Order</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-medium text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Process</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Pieces</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Rate/Piece</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Payment</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -179,132 +199,132 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set current month and year as default
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    
-    const monthSelect = document.getElementById('month');
-    const yearSelect = document.getElementById('year');
-    
-    // Set defaults if options exist
-    if (monthSelect.querySelector(`option[value="${currentMonth}"]`)) {
-        monthSelect.value = currentMonth;
-    }
-    if (yearSelect.querySelector(`option[value="${currentYear}"]`)) {
-        yearSelect.value = currentYear;
-    }
-    
-    // Manual form submission trigger
-    const form = document.querySelector('form');
-    const submitBtn = document.getElementById('submit-btn');
-    const pdfBtn = document.getElementById('pdf-btn');
-    
-    submitBtn.addEventListener('click', function(e) {
-        console.log('Payment report submit button clicked!');
-        console.log('Form data:', {
-            employee_id: document.getElementById('employee_id').value,
-            month: document.getElementById('month').value,
-            year: document.getElementById('year').value
-        });
-        
-        // Manually trigger form submission
-        console.log('Manually submitting payment report form...');
-        form.submit();
-    });
-    
-    // PDF download button click handler
-    pdfBtn.addEventListener('click', function(e) {
-        console.log('PDF download button clicked!');
-        
-        // Validate form data before submitting
-        const employeeId = document.getElementById('employee_id').value;
-        const month = document.getElementById('month').value;
-        const year = document.getElementById('year').value;
-        
-        console.log('PDF form data:', {
-            employee_id: employeeId,
-            month: month,
-            year: year
-        });
-        
-        if (!employeeId || !month || !year) {
-            e.preventDefault();
-            alert('Please fill in all fields before downloading PDF');
-            return false;
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set current month and year as default
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        const monthSelect = document.getElementById('month');
+        const yearSelect = document.getElementById('year');
+
+        // Set defaults if options exist
+        if (monthSelect.querySelector(`option[value="${currentMonth}"]`)) {
+            monthSelect.value = currentMonth;
         }
-        
-        // Create a temporary form for PDF download
-        const pdfForm = document.createElement('form');
-        pdfForm.method = 'POST';
-        pdfForm.action = '{{ url_for("download_payment_report_pdf") }}';
-        
-        // Add form fields
-        const employeeInput = document.createElement('input');
-        employeeInput.type = 'hidden';
-        employeeInput.name = 'employee_id';
-        employeeInput.value = employeeId;
-        pdfForm.appendChild(employeeInput);
-        
-        const monthInput = document.createElement('input');
-        monthInput.type = 'hidden';
-        monthInput.name = 'month';
-        monthInput.value = month;
-        pdfForm.appendChild(monthInput);
-        
-        const yearInput = document.createElement('input');
-        yearInput.type = 'hidden';
-        yearInput.name = 'year';
-        yearInput.value = year;
-        pdfForm.appendChild(yearInput);
-        
-        // Submit the PDF form
-        document.body.appendChild(pdfForm);
-        pdfForm.submit();
-        document.body.removeChild(pdfForm);
-        
-        console.log('PDF download form submitted');
-    });
-    
-    // PDF download button in report results section
-    const downloadPdfBtn = document.getElementById('download-pdf-btn');
-    if (downloadPdfBtn) {
-        downloadPdfBtn.addEventListener('click', function(e) {
-            console.log('Download PDF button in report results clicked!');
-            
-            // Create a temporary form for PDF download with the current report data
+        if (yearSelect.querySelector(`option[value="${currentYear}"]`)) {
+            yearSelect.value = currentYear;
+        }
+
+        // Manual form submission trigger
+        const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submit-btn');
+        const pdfBtn = document.getElementById('pdf-btn');
+
+        submitBtn.addEventListener('click', function (e) {
+            console.log('Payment report submit button clicked!');
+            console.log('Form data:', {
+                employee_id: document.getElementById('employee_id').value,
+                month: document.getElementById('month').value,
+                year: document.getElementById('year').value
+            });
+
+            // Manually trigger form submission
+            console.log('Manually submitting payment report form...');
+            form.submit();
+        });
+
+        // PDF download button click handler
+        pdfBtn.addEventListener('click', function (e) {
+            console.log('PDF download button clicked!');
+
+            // Validate form data before submitting
+            const employeeId = document.getElementById('employee_id').value;
+            const month = document.getElementById('month').value;
+            const year = document.getElementById('year').value;
+
+            console.log('PDF form data:', {
+                employee_id: employeeId,
+                month: month,
+                year: year
+            });
+
+            if (!employeeId || !month || !year) {
+                e.preventDefault();
+                alert('Please fill in all fields before downloading PDF');
+                return false;
+            }
+
+            // Create a temporary form for PDF download
             const pdfForm = document.createElement('form');
             pdfForm.method = 'POST';
             pdfForm.action = '{{ url_for("download_payment_report_pdf") }}';
-            
-            // Add form fields with current report data
+
+            // Add form fields
             const employeeInput = document.createElement('input');
             employeeInput.type = 'hidden';
             employeeInput.name = 'employee_id';
-            employeeInput.value = '{{ report_data.employee.id if report_data else "" }}';
+            employeeInput.value = employeeId;
             pdfForm.appendChild(employeeInput);
-            
+
             const monthInput = document.createElement('input');
             monthInput.type = 'hidden';
             monthInput.name = 'month';
-            monthInput.value = '{{ report_data.month if report_data else "" }}';
+            monthInput.value = month;
             pdfForm.appendChild(monthInput);
-            
+
             const yearInput = document.createElement('input');
             yearInput.type = 'hidden';
             yearInput.name = 'year';
-            yearInput.value = '{{ report_data.year if report_data else "" }}';
+            yearInput.value = year;
             pdfForm.appendChild(yearInput);
-            
+
             // Submit the PDF form
             document.body.appendChild(pdfForm);
             pdfForm.submit();
             document.body.removeChild(pdfForm);
-            
-            console.log('PDF download form submitted from report results');
+
+            console.log('PDF download form submitted');
         });
-    }
-});
+
+        // PDF download button in report results section
+        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.addEventListener('click', function (e) {
+                console.log('Download PDF button in report results clicked!');
+
+                // Create a temporary form for PDF download with the current report data
+                const pdfForm = document.createElement('form');
+                pdfForm.method = 'POST';
+                pdfForm.action = '{{ url_for("download_payment_report_pdf") }}';
+
+                // Add form fields with current report data
+                const employeeInput = document.createElement('input');
+                employeeInput.type = 'hidden';
+                employeeInput.name = 'employee_id';
+                employeeInput.value = '{{ report_data.employee.id if report_data else "" }}';
+                pdfForm.appendChild(employeeInput);
+
+                const monthInput = document.createElement('input');
+                monthInput.type = 'hidden';
+                monthInput.name = 'month';
+                monthInput.value = '{{ report_data.month if report_data else "" }}';
+                pdfForm.appendChild(monthInput);
+
+                const yearInput = document.createElement('input');
+                yearInput.type = 'hidden';
+                yearInput.name = 'year';
+                yearInput.value = '{{ report_data.year if report_data else "" }}';
+                pdfForm.appendChild(yearInput);
+
+                // Submit the PDF form
+                document.body.appendChild(pdfForm);
+                pdfForm.submit();
+                document.body.removeChild(pdfForm);
+
+                console.log('PDF download form submitted from report results');
+            });
+        }
+    });
 </script>
-{% endblock %} 
+{% endblock %}

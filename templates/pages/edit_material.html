@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Material - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('materials') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Material</h1>
+        </div>
+        <p class="text-gray-600">Update material details and stock</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="max-w-2xl">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="space-y-6">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Material Name *</label>
+                            <input type="text" id="name" name="name" class="form-input" value="{{ material.name }}"
+                                required>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-group">
+                                <label for="unit" class="form-label">Unit of Measure *</label>
+                                <select id="unit" name="unit" class="form-select" required>
+                                    <option value="meters" {% if material.unit=='meters' %}selected{% endif %}>Meters
+                                    </option>
+                                    <option value="yards" {% if material.unit=='yards' %}selected{% endif %}>Yards
+                                    </option>
+                                    <option value="pieces" {% if material.unit=='pieces' %}selected{% endif %}>Pieces
+                                    </option>
+                                    <option value="kg" {% if material.unit=='kg' %}selected{% endif %}>Kilograms
+                                    </option>
+                                    <option value="rolls" {% if material.unit=='rolls' %}selected{% endif %}>Rolls
+                                    </option>
+                                    <option value="packs" {% if material.unit=='packs' %}selected{% endif %}>Packs
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="cost_per_unit" class="form-label">Cost per Unit ({{
+                                    settings.get('currency_symbol', 'LKR') }})</label>
+                                <input type="number" id="cost_per_unit" name="cost_per_unit" class="form-input"
+                                    step="0.01" min="0" value="{{ material.cost_per_unit }}">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-group">
+                                <label for="current_stock" class="form-label">Current Stock</label>
+                                <input type="number" id="current_stock" name="current_stock" class="form-input"
+                                    step="0.01" min="0" value="{{ material.current_stock }}">
+                                <p class="text-sm text-gray-500 mt-1">Changing this will create an adjustment record.
+                                </p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="reorder_level" class="form-label">Reorder Level</label>
+                                <input type="number" id="reorder_level" name="reorder_level" class="form-input"
+                                    step="0.01" min="0" value="{{ material.reorder_level }}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea id="description" name="description" class="form-textarea"
+                                rows="3">{{ material.description }}</textarea>
+                        </div>
+
+                        <div class="pt-4 border-t border-gray-200 flex justify-end space-x-4">
+                            <a href="{{ url_for('materials') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save mr-2"></i>
+                                Update Material
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

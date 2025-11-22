@@ -168,4 +168,90 @@ class WorkLogOverage(db.Model):
     work_log = db.relationship('WorkLog', backref='overage_contributions')
     
     def __repr__(self):
-        return f'<WorkLogOverage {self.work_log.employee.name} - {self.overage_units} units>' 
+        return f'<WorkLogOverage {self.work_log.employee.name} - {self.overage_units} units>'
+
+class Setting(db.Model):
+    """System settings model"""
+    __tablename__ = 'settings'
+    
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.Text)
+    description = db.Column(db.String(200))
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Setting {self.key}>'
+
+class AuditLog(db.Model):
+    """Audit log model to track system actions"""
+    __tablename__ = 'audit_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    action = db.Column(db.String(50), nullable=False)
+    target_type = db.Column(db.String(50))  # e.g., 'Order', 'Employee'
+    target_id = db.Column(db.Integer)
+    details = db.Column(db.Text)
+    ip_address = db.Column(db.String(50))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='audit_logs')
+    
+    def __repr__(self):
+        return f'<AuditLog {self.action} - {self.timestamp}>'
+
+class Material(db.Model):
+    """Raw material model"""
+    __tablename__ = 'materials'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    unit = db.Column(db.String(20), nullable=False)  # e.g., 'meters', 'yards', 'pieces', 'kg'
+    cost_per_unit = db.Column(db.Float, default=0.0)
+    current_stock = db.Column(db.Float, default=0.0)
+    reorder_level = db.Column(db.Float, default=10.0)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Material {self.name}>'
+
+class InventoryTransaction(db.Model):
+    """Track inventory changes"""
+    __tablename__ = 'inventory_transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=False)
+    quantity_change = db.Column(db.Float, nullable=False)  # Positive for add, negative for use
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'purchase', 'production', 'adjustment'
+    notes = db.Column(db.Text)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    material = db.relationship('Material', backref='transactions')
+    user = db.relationship('User', backref='inventory_transactions')
+    
+    def __repr__(self):
+        return f'<InventoryTransaction {self.material.name} ({self.quantity_change})>'
+
+class BillOfMaterials(db.Model):
+    """Link materials to orders (Estimated usage)"""
+    __tablename__ = 'bill_of_materials'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=False)
+    quantity_required = db.Column(db.Float, nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    order = db.relationship('Order', backref='bom_items')
+    material = db.relationship('Material', backref='bom_usages')
+    
+    def __repr__(self):
+        return f'<BOM {self.order.order_no} - {self.material.name}>' 

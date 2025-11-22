@@ -1,23 +1,53 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
-from models import db, User, Employee, Process, Order, WorkLog, Payment, OrderStatus, Overage, WorkLogOverage
+from models import db, User, Employee, Process, Order, WorkLog, Payment, OrderStatus, Overage, WorkLogOverage, Setting, AuditLog, Material, InventoryTransaction, BillOfMaterials
+from datetime import datetime, timedelta, date
+from sqlalchemy import func, extract, and_, inspect
 import os
 import sys
 import shutil
-from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import func, and_, inspect
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
+import csv
+import io
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 
-# Resolve base directory robustly for both normal and frozen (PyInstaller) runs
+# Admin required decorator
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if session.get('role') != 'admin':
+            flash('You do not have permission to access this page.', 'error')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Helper function for audit logging
+def log_audit(action, entity_type, entity_id, details):
+    """Log an audit event"""
+    try:
+        audit_log = AuditLog(
+            user_id=session.get('user_id'),
+            action=action,
+            target_type=entity_type,  # Using target_type to match model
+            target_id=entity_id,       # Using target_id to match model
+            details=details
+        )
+        db.session.add(audit_log)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error logging audit: {e}")
+        # Don't fail the main operation if audit logging fails
+        db.session.rollback()
+
+# Helper function to resolve base directory robustly for both normal and frozen (PyInstaller) runs
 def _resolve_base_dir():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
@@ -143,6 +173,20 @@ def before_request():
         elif session.get('logged_in'):
             update_session_activity()
 
+# Context processor to make settings available in all templates
+@app.context_processor
+def inject_settings():
+    """Make settings available in all templates"""
+    try:
+        settings_dict = {}
+        all_settings = Setting.query.all()
+        for setting in all_settings:
+            settings_dict[setting.key] = setting.value
+        return dict(app_settings=settings_dict)
+    except:
+        # If settings table doesn't exist yet, return empty dict
+        return dict(app_settings={})
+
 @app.route('/')
 def index():
     """Redirect to login page"""
@@ -159,9 +203,16 @@ def login():
         
         if user and user.check_password(password):
             session['logged_in'] = True
-            session['username'] = username
             session['user_id'] = user.id
-            flash('Login successful!', 'success')
+            session['username'] = user.username
+            session['role'] = user.role
+            
+            # Update last active time
+            session['last_active'] = datetime.utcnow().timestamp()
+            
+            # Assuming log_audit is defined elsewhere or will be added
+            # log_audit('Login', 'User', user.id, 'User logged in') 
+            flash('Logged in successfully!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'error')
@@ -186,13 +237,26 @@ def dashboard():
     # Recent work logs
     recent_work_logs = WorkLog.query.order_by(WorkLog.created_at.desc()).limit(5).all()
     
+    # Calculate daily production for the last 7 days
+    today = date.today()
+    dates = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
+    daily_production = []
+    
+    for d in dates:
+        total = db.session.query(func.sum(WorkLog.quantity)).filter(WorkLog.date == d).scalar() or 0
+        daily_production.append(total)
+        
+    chart_dates = [d.strftime('%b %d') for d in dates]
+    
     return render_template('pages/dashboard.html',
                          total_employees=total_employees,
                          total_orders=total_orders,
                          pending_orders=pending_orders,
                          completed_orders=completed_orders,
                          recent_orders=recent_orders,
-                         recent_work_logs=recent_work_logs)
+                         recent_work_logs=recent_work_logs,
+                         chart_dates=chart_dates,
+                         daily_production=daily_production)
 
 @app.route('/employees')
 def employees():
@@ -200,7 +264,7 @@ def employees():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
     
-    employees = Employee.query.filter_by(is_active=True).all()
+    employees = Employee.query.order_by(Employee.is_active.desc(), Employee.name).all()
     return render_template('pages/employees.html', employees=employees)
 
 @app.route('/employees/add', methods=['GET', 'POST'])
@@ -829,38 +893,55 @@ def delete_order(order_id):
 
 @app.route('/employees/<int:employee_id>/delete', methods=['POST'])
 def delete_employee(employee_id):
-    """Delete employee"""
+    """Delete employee (kept for backward compatibility, redirects to deactivate)"""
+    return deactivate_employee(employee_id)
+
+@app.route('/employees/<int:employee_id>/deactivate', methods=['POST'])
+def deactivate_employee(employee_id):
+    """Deactivate employee (soft delete)"""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
     
     try:
         employee = Employee.query.get_or_404(employee_id)
-        
-        # Check if employee has work logs
-        work_logs = WorkLog.query.filter_by(employee_id=employee_id).all()
-        if work_logs:
-            flash('Cannot delete employee with existing work logs. Please delete work logs first.', 'error')
-            return redirect(url_for('employees'))
-        
-        # Check if employee has payments
-        payments = Payment.query.filter_by(employee_id=employee_id).all()
-        if payments:
-            # Clean up payments first
-            cleanup_payments_for_employee(employee_id)
-        
-        print(f"Deleting employee {employee_id}: {employee.name}")
-        
-        db.session.delete(employee)
+        employee.is_active = False
         db.session.commit()
         
-        flash('Employee deleted successfully!', 'success')
-        return redirect(url_for('employees'))
+        log_audit('Deactivate Employee', 'Employee', employee.id, f'Deactivated employee {employee.name}')
+        flash(f'Employee {employee.name} has been deactivated.', 'success')
         
     except Exception as e:
-        print(f"Error deleting employee {employee_id}: {e}")
+        print(f"Error deactivating employee {employee_id}: {e}")
         db.session.rollback()
-        flash('Error deleting employee. Please try again.', 'error')
-        return redirect(url_for('employees'))
+        flash('Error deactivating employee. Please try again.', 'error')
+        
+    return redirect(url_for('employees'))
+
+@app.route('/employees/<int:employee_id>/activate', methods=['POST'])
+def activate_employee(employee_id):
+    """Activate employee"""
+    print(f"=== ACTIVATE ROUTE CALLED for employee_id: {employee_id} ===")
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    try:
+        employee = Employee.query.get_or_404(employee_id)
+        print(f"Activating employee {employee_id}: {employee.name}, current status: {employee.is_active}")
+        employee.is_active = True
+        db.session.commit()
+        print(f"Employee {employee_id} activated successfully, new status: {employee.is_active}")
+        
+        log_audit('Activate Employee', 'Employee', employee.id, f'Activated employee {employee.name}')
+        flash(f'Employee {employee.name} has been activated.', 'success')
+        
+    except Exception as e:
+        print(f"Error activating employee {employee_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        flash('Error activating employee. Please try again.', 'error')
+        
+    return redirect(url_for('employees'))
 
 @app.route('/processes/<int:process_id>/delete', methods=['POST'])
 def delete_process(process_id):
@@ -1151,13 +1232,82 @@ def download_payment_report_pdf():
         flash('Error generating PDF report', 'error')
         return redirect(url_for('payment_report'))
 
+@app.route('/payment-report/csv', methods=['POST'])
+def download_payment_report_csv():
+    """Generate CSV payment report"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    try:
+        employee_id = request.form.get('employee_id')
+        year = int(request.form.get('year'))
+        month = int(request.form.get('month'))
+        
+        employee = Employee.query.get_or_404(employee_id)
+        work_logs = WorkLog.query.filter(
+            WorkLog.employee_id == employee_id,
+            extract('year', WorkLog.date) == year,
+            extract('month', WorkLog.date) == month
+        ).order_by(WorkLog.date.asc()).all()
+        
+        # Create CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow(['Payment Report'])
+        writer.writerow([f'Employee: {employee.name} ({employee.employee_id})'])
+        writer.writerow([f'Period: {year}-{month:02d}'])
+        writer.writerow([])
+        
+        # Column headers
+        writer.writerow(['Date', 'Order ID', 'Process', 'Quantity', 'Rate', 'Amount'])
+        
+        # Data rows
+        total_payment = 0
+        for wl in work_logs:
+            process = Process.query.get(wl.process_id)
+            if process:
+                amount = wl.quantity * process.pay_rate
+                total_payment += amount
+                writer.writerow([
+                    wl.date.strftime('%Y-%m-%d'),
+                    wl.order_id,
+                    process.name,
+                    wl.quantity,
+                    f'{process.pay_rate:.2f}',
+                    f'{amount:.2f}'
+                ])
+        
+        # Total
+        writer.writerow([])
+        writer.writerow(['', '', '', '', 'Total:', f'{total_payment:.2f}'])
+        
+        # Convert to bytes
+        output.seek(0)
+        
+        filename = f"payment_report_{employee.employee_id}_{year}_{month:02d}.csv"
+        
+        return send_file(
+            io.BytesIO(output.getvalue().encode('utf-8')),
+            as_attachment=True,
+            download_name=filename,
+            mimetype='text/csv'
+        )
+        
+    except Exception as e:
+        print(f"Error generating CSV: {e}")
+        flash('Error generating CSV report', 'error')
+        return redirect(url_for('payment_report'))
+
+
 @app.route('/processes')
 def processes():
     """View all processes"""
     if not session.get('logged_in'):
         return redirect(url_for('login'))
     
-    processes = Process.query.filter_by(is_active=True).all()
+    processes = Process.query.order_by(Process.is_active.desc(), Process.name).all()
     return render_template('pages/processes.html', processes=processes)
 
 @app.route('/processes/add', methods=['GET', 'POST'])
@@ -1294,12 +1444,274 @@ def backup():
                          last_backup_path=last_backup_path,
                          available_backups=available_backups)
 
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    """System settings page"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        try:
+            # Update settings
+            settings_data = {
+                'company_name': request.form.get('company_name'),
+                'currency_symbol': request.form.get('currency_symbol'),
+                'items_per_page': request.form.get('items_per_page')
+            }
+            
+            for key, value in settings_data.items():
+                setting = Setting.query.get(key)
+                if not setting:
+                    setting = Setting(key=key, description=key.replace('_', ' ').title())
+                    db.session.add(setting)
+                setting.value = value
+            
+            db.session.commit()
+            log_audit('Update Settings', 'System', None, 'Updated system settings')
+            flash('Settings updated successfully!', 'success')
+            
+        except Exception as e:
+            print(f"Error updating settings: {e}")
+            db.session.rollback()
+            flash('Error updating settings', 'error')
+            
+        return redirect(url_for('settings'))
+    
+    # Fetch current settings
+    settings_dict = {}
+    try:
+        all_settings = Setting.query.all()
+        for setting in all_settings:
+            settings_dict[setting.key] = setting.value
+    except Exception as e:
+        print(f"Error fetching settings: {e}")
+        # Provide defaults if tables don't exist yet
+        settings_dict = {
+            'company_name': 'Oleema Industries',
+            'currency_symbol': 'LKR',
+            'items_per_page': '10'
+        }
+    
+    return render_template('pages/settings.html', settings=settings_dict)
+
+@app.route('/audit-logs')
+def audit_logs():
+    """View audit logs"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).paginate(page=page, per_page=per_page)
+    
+    return render_template('pages/audit_logs.html', logs=logs)
+
+@app.route('/users')
+@admin_required
+def users():
+    """User management page"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    users = User.query.all()
+    return render_template('pages/users.html', users=users)
+
+@app.route('/users/add', methods=['GET', 'POST'])
+@admin_required
+def add_user():
+    """Add new user"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+        
+        if not all([username, password, role]):
+            flash('Please fill in all required fields', 'error')
+        else:
+            existing = User.query.filter_by(username=username).first()
+            if existing:
+                flash('Username already exists', 'error')
+            else:
+                user = User(username=username, role=role)
+                user.set_password(password)
+                db.session.add(user)
+                db.session.commit()
+                
+                log_audit('Create User', 'User', user.id, f'Created user {username}')
+                flash('User created successfully!', 'success')
+                return redirect(url_for('users'))
+    
+    return render_template('pages/add_user.html')
+
+@app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_user(user_id):
+    """Edit user"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        user.role = request.form.get('role')
+        
+        password = request.form.get('password')
+        if password:
+            user.set_password(password)
+            
+        db.session.commit()
+        log_audit('Update User', 'User', user.id, f'Updated user {user.username}')
+        flash('User updated successfully!', 'success')
+        return redirect(url_for('users'))
+    
+    return render_template('pages/edit_user.html', user=user)
+
+@app.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    """Delete user"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    if user_id == session.get('user_id'):
+        flash('You cannot delete your own account', 'error')
+        return redirect(url_for('users'))
+    
+    user = User.query.get_or_404(user_id)
+    username = user.username
+    
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        log_audit('Delete User', 'User', user_id, f'Deleted user {username}')
+        flash('User deleted successfully!', 'success')
+    except Exception as e:
+        print(f"Error deleting user: {e}")
+        db.session.rollback()
+        flash('Error deleting user', 'error')
+        
+    return redirect(url_for('users'))
+
 @app.route('/logout')
 def logout():
     """Logout user"""
+    if session.get('logged_in'):
+        log_audit('Logout', 'User', session.get('user_id'), 'User logged out')
+        
     session.clear()
-    flash('You have been logged out', 'info')
+    flash('Logged out successfully!', 'success')
     return redirect(url_for('login'))
+
+# Material Management Routes
+@app.route('/materials')
+def materials():
+    """Material management page"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    materials = Material.query.filter_by(is_active=True).all()
+    return render_template('pages/materials.html', materials=materials)
+
+@app.route('/materials/add', methods=['GET', 'POST'])
+def add_material():
+    """Add new material"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        unit = request.form.get('unit')
+        cost = float(request.form.get('cost_per_unit') or 0)
+        stock = float(request.form.get('current_stock') or 0)
+        reorder = float(request.form.get('reorder_level') or 0)
+        description = request.form.get('description')
+        
+        if not all([name, unit]):
+            flash('Please fill in all required fields', 'error')
+        else:
+            material = Material(
+                name=name,
+                unit=unit,
+                cost_per_unit=cost,
+                current_stock=stock,
+                reorder_level=reorder,
+                description=description
+            )
+            db.session.add(material)
+            db.session.commit()
+            
+            # Log initial stock transaction if > 0
+            if stock > 0:
+                transaction = InventoryTransaction(
+                    material_id=material.id,
+                    quantity_change=stock,
+                    transaction_type='adjustment',
+                    notes='Initial stock',
+                    user_id=session.get('user_id')
+                )
+                db.session.add(transaction)
+                db.session.commit()
+            
+            log_audit('Create Material', 'Material', material.id, f'Created material {name}')
+            flash('Material added successfully!', 'success')
+            return redirect(url_for('materials'))
+            
+    return render_template('pages/add_material.html')
+
+@app.route('/materials/<int:material_id>/edit', methods=['GET', 'POST'])
+def edit_material(material_id):
+    """Edit material"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    material = Material.query.get_or_404(material_id)
+    
+    if request.method == 'POST':
+        material.name = request.form.get('name')
+        material.unit = request.form.get('unit')
+        material.cost_per_unit = float(request.form.get('cost_per_unit') or 0)
+        material.reorder_level = float(request.form.get('reorder_level') or 0)
+        material.description = request.form.get('description')
+        
+        # Handle stock adjustment
+        new_stock = float(request.form.get('current_stock') or 0)
+        stock_diff = new_stock - material.current_stock
+        
+        if abs(stock_diff) > 0.001:
+            transaction = InventoryTransaction(
+                material_id=material.id,
+                quantity_change=stock_diff,
+                transaction_type='adjustment',
+                notes='Manual adjustment',
+                user_id=session.get('user_id')
+            )
+            db.session.add(transaction)
+            material.current_stock = new_stock
+            
+        db.session.commit()
+        log_audit('Update Material', 'Material', material.id, f'Updated material {material.name}')
+        flash('Material updated successfully!', 'success')
+        return redirect(url_for('materials'))
+        
+    return render_template('pages/edit_material.html', material=material)
+
+@app.route('/materials/<int:material_id>/delete', methods=['POST'])
+def delete_material(material_id):
+    """Soft delete material"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    material = Material.query.get_or_404(material_id)
+    material.is_active = False
+    db.session.commit()
+    
+    log_audit('Delete Material', 'Material', material.id, f'Deactivated material {material.name}')
+    flash('Material deactivated successfully!', 'success')
+    return redirect(url_for('materials'))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

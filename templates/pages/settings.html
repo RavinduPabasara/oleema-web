@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - Oleema{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center mb-4">
+            <a href="{{ url_for('dashboard') }}" class="text-primary hover:text-primary-dark mr-4">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">System Settings</h1>
+        </div>
+        <p class="text-gray-600">Configure global system preferences</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Settings Form -->
+        <div class="lg:col-span-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">General Configuration</h3>
+                    <p class="card-subtitle">Basic application settings</p>
+                </div>
+
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="space-y-6">
+                            <div class="form-group">
+                                <label for="company_name" class="form-label">Company Name</label>
+                                <input type="text" id="company_name" name="company_name" class="form-input"
+                                    value="{{ settings.get('company_name', 'Oleema Industries') }}" required>
+                                <p class="text-sm text-gray-500 mt-1">Displayed in reports and page titles.</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="form-group">
+                                    <label for="currency_symbol" class="form-label">Currency Symbol</label>
+                                    <input type="text" id="currency_symbol" name="currency_symbol" class="form-input"
+                                        value="{{ settings.get('currency_symbol', 'LKR') }}" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="items_per_page" class="form-label">Items Per Page</label>
+                                    <select id="items_per_page" name="items_per_page" class="form-select">
+                                        <option value="10" {% if settings.get('items_per_page')=='10' %}selected{% endif
+                                            %}>10</option>
+                                        <option value="20" {% if settings.get('items_per_page')=='20' %}selected{% endif
+                                            %}>20</option>
+                                        <option value="50" {% if settings.get('items_per_page')=='50' %}selected{% endif
+                                            %}>50</option>
+                                        <option value="100" {% if settings.get('items_per_page')=='100' %}selected{%
+                                            endif %}>100</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-gray-200">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="lg:col-span-1">
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">System Information</h3>
+                </div>
+                <div class="card-body">
+                    <div class="space-y-4">
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-gray-600">Version</span>
+                            <span class="font-medium">1.0.0</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-gray-600">Database</span>
+                            <span class="font-medium">SQLite</span>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-100">
+                            <span class="text-gray-600">Last Backup</span>
+                            <span class="font-medium">
+                                {% if last_backup %}
+                                {{ last_backup }}
+                                {% else %}
+                                Never
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="card-body space-y-3">
+                    <a href="{{ url_for('backup') }}" class="btn btn-secondary w-full justify-center">
+                        <i class="fas fa-database mr-2"></i>
+                        Manage Backups
+                    </a>
+                    <a href="{{ url_for('audit_logs') }}" class="btn btn-secondary w-full justify-center">
+                        <i class="fas fa-history mr-2"></i>
+                        View Audit Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

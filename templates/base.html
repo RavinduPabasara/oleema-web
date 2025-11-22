@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
+
 <body class="bg-gray-50">
     <!-- Sidebar -->
     <aside class="sidebar">
@@ -22,76 +24,115 @@
                 <span class="sidebar-brand-text">Oleema</span>
             </a>
         </div>
-        
+
         <nav class="sidebar-nav">
             <div class="sidebar-nav-section">
                 <div class="sidebar-nav-title">Main Menu</div>
                 <ul class="sidebar-nav-list">
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('dashboard') }}" class="sidebar-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                        <a href="{{ url_for('dashboard') }}"
+                            class="sidebar-nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                             <i class="fas fa-tachometer-alt sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Dashboard</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('orders') }}" class="sidebar-nav-link {% if request.endpoint in ['orders', 'new_order', 'view_order'] %}active{% endif %}">
+                        <a href="{{ url_for('orders') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['orders', 'new_order', 'view_order'] %}active{% endif %}">
                             <i class="fas fa-shopping-cart sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Orders</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('employees') }}" class="sidebar-nav-link {% if request.endpoint in ['employees', 'add_employee', 'edit_employee'] %}active{% endif %}">
+                        <a href="{{ url_for('employees') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['employees', 'add_employee', 'edit_employee'] %}active{% endif %}">
                             <i class="fas fa-users sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Employees</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('work_logs') }}" class="sidebar-nav-link {% if request.endpoint in ['work_logs', 'work_log'] %}active{% endif %}">
+                        <a href="{{ url_for('work_logs') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['work_logs', 'work_log'] %}active{% endif %}">
                             <i class="fas fa-clipboard-list sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Work Logs</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('processes') }}" class="sidebar-nav-link {% if request.endpoint in ['processes', 'add_process'] %}active{% endif %}">
+                        <a href="{{ url_for('processes') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['processes', 'add_process'] %}active{% endif %}">
                             <i class="fas fa-cogs sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Processes</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('payment_report') }}" class="sidebar-nav-link {% if request.endpoint == 'payment_report' %}active{% endif %}">
+                        <a href="{{ url_for('payment_report') }}"
+                            class="sidebar-nav-link {% if request.endpoint == 'payment_report' %}active{% endif %}">
                             <i class="fas fa-chart-bar sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Payment Report</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('overages') }}" class="sidebar-nav-link {% if request.endpoint in ['overages', 'overage_detail', 'approve_overage'] %}active{% endif %}">
+                        <a href="{{ url_for('overages') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['overages', 'overage_detail', 'approve_overage'] %}active{% endif %}">
                             <i class="fas fa-exclamation-triangle sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Overage Management</span>
                         </a>
                     </li>
                 </ul>
             </div>
-            
+
             <!-- Security Section -->
             <div class="sidebar-nav-section">
                 <div class="sidebar-nav-title">Security</div>
                 <ul class="sidebar-nav-list">
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('backup') }}" class="sidebar-nav-link {% if request.endpoint == 'backup' %}active{% endif %}">
+                        <a href="{{ url_for('backup') }}"
+                            class="sidebar-nav-link {% if request.endpoint == 'backup' %}active{% endif %}">
                             <i class="fas fa-database sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Backup & Restore</span>
                         </a>
                     </li>
                     <li class="sidebar-nav-item">
-                        <a href="{{ url_for('change_password') }}" class="sidebar-nav-link {% if request.endpoint == 'change_password' %}active{% endif %}">
+                        <a href="{{ url_for('change_password') }}"
+                            class="sidebar-nav-link {% if request.endpoint == 'change_password' %}active{% endif %}">
                             <i class="fas fa-lock sidebar-nav-icon"></i>
                             <span class="sidebar-nav-text">Change Password</span>
                         </a>
                     </li>
                 </ul>
             </div>
+
+            <!-- System Section -->
+            <div class="sidebar-nav-section">
+                <div class="sidebar-nav-title">System</div>
+                <ul class="sidebar-nav-list">
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('materials') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['materials', 'add_material', 'edit_material'] %}active{% endif %}">
+                            <i class="fas fa-boxes sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Materials</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('settings') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['settings', 'audit_logs'] %}active{% endif %}">
+                            <i class="fas fa-cog sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Settings</span>
+                        </a>
+                    </li>
+                    {% if session.get('role') == 'admin' %}
+                    <li class="sidebar-nav-item">
+                        <a href="{{ url_for('users') }}"
+                            class="sidebar-nav-link {% if request.endpoint in ['users', 'add_user', 'edit_user'] %}active{% endif %}">
+                            <i class="fas fa-users-cog sidebar-nav-icon"></i>
+                            <span class="sidebar-nav-text">Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
         </nav>
-        
+
         <div class="sidebar-footer">
             <div class="sidebar-user">
                 <div class="sidebar-user-avatar">
@@ -99,12 +140,14 @@
                 </div>
                 <div class="sidebar-user-info">
                     <div class="sidebar-user-name">{{ session.get('username', 'Admin') }}</div>
-                    <div class="sidebar-user-role">Manager</div>
+                    <div class="sidebar-user-role">{{ session.get('role', 'user').title() }}</div>
                 </div>
                 <div class="sidebar-user-actions">
+                    <!--
                     <button class="sidebar-user-action" title="Settings">
                         <i class="fas fa-cog"></i>
                     </button>
+                    -->
                     <a href="{{ url_for('logout') }}" class="sidebar-user-action" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </a>
@@ -121,14 +164,16 @@
                 <button class="mobile-header-toggle" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
-                
+
                 <div class="header-actions">
+                    <!--
                     <button class="header-action-btn" title="Notifications">
                         <i class="fas fa-bell"></i>
                     </button>
                     <button class="header-action-btn" title="Settings">
                         <i class="fas fa-cog"></i>
                     </button>
+                    -->
                 </div>
             </div>
         </header>
@@ -145,5 +190,5 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
-</html>
 
+</html>

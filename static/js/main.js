@@ -158,6 +158,33 @@ const Tables = {
         header.classList.add(isAscending ? 'sort-desc' : 'sort-asc');
       });
     });
+  },
+
+  // Filter cards
+  filterCards: (inputId, containerId, cardSelector) => {
+    const input = document.getElementById(inputId);
+    const container = document.getElementById(containerId);
+    if (!input || !container) return;
+
+    input.addEventListener('input', () => {
+      const filter = input.value.toLowerCase();
+      const cards = container.querySelectorAll(cardSelector);
+
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(filter)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      
+      // Re-apply inactive filter if it exists
+      const showInactiveCheckbox = document.getElementById('showInactive');
+      if (showInactiveCheckbox) {
+        showInactiveCheckbox.dispatchEvent(new Event('change'));
+      }
+    });
   }
 };
 
@@ -211,8 +238,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.btn').forEach(button => {
     button.addEventListener('click', function() {
       if (this.type === 'submit' && !this.disabled) {
-        this.classList.add('btn-loading');
-        this.disabled = true;
+        // Use setTimeout to allow the form submission event to propagate first
+        setTimeout(() => {
+            this.classList.add('btn-loading');
+            this.disabled = true;
+        }, 10);
         
         // Remove loading state after form submission
         setTimeout(() => {
