@@ -1,70 +1,82 @@
-name: Build Windows EXE
+name: Build Windows app
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to attach files to a GitHub Release on tag builds
 
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements.txt "pyinstaller>=6.10"
 
-      - name: Vendor Font Awesome assets (for offline icons)
-        run: |
-          New-Item -ItemType Directory -Force -Path static\vendor\fontawesome\css | Out-Null
-          New-Item -ItemType Directory -Force -Path static\vendor\fontawesome\webfonts | Out-Null
-          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" -OutFile static\vendor\fontawesome\css\all.min.css
-          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-brands-400.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-brands-400.woff2
-          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-regular-400.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-regular-400.woff2
-          Invoke-WebRequest -Uri "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2" -OutFile static\vendor\fontawesome\webfonts\fa-solid-900.woff2
+      - name: Smoke test (from source)
+        run: python desktop.py --smoke-test
 
-      - name: Ensure instance directory
+      - name: Work out version
+        id: version
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path instance | Out-Null
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Initialize database (seed admin/processes)
-        run: |
-          python init_db.py
+      - name: Build executable
+        run: python build.py
 
-      - name: Ensure DB files exist for packaging
+      - name: Smoke test (built .exe)
+        shell: pwsh
         run: |
-          # If a seeded root DB exists, mirror it into instance
-          if (Test-Path .\oleema.db) {
-            New-Item -ItemType Directory -Force -Path instance | Out-Null
-            Copy-Item .\oleema.db .\instance\oleema.db -Force
+          $log = Join-Path $env:RUNNER_TEMP 'smoke.log'
+          $env:OLEEMA_SMOKE_LOG = $log
+          $p = Start-Process -FilePath 'dist\Oleema\Oleema.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          Get-Content $log
+          if ($p.ExitCode -ne 0) { throw "Smoke test of built exe failed (exit code $($p.ExitCode))" }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+            if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+            $env:Path += ';C:\Program Files (x86)\Inno Setup 6'
           }
-          # If root DB is missing but instance DB exists (from repo), mirror instance to root
-          elseif (Test-Path .\instance\oleema.db) {
-            Copy-Item .\instance\oleema.db .\oleema.db -Force
-          }
+          iscc /DAppVersion=${{ steps.version.outputs.version }} packaging\installer.iss
 
-      - name: Build with PyInstaller
-        # On Windows, use single-line to avoid PowerShell parsing issues
-        run: pyinstaller --noconfirm --clean --name Oleema --add-data "oleema.db;." --add-data "templates;templates" --add-data "static;static" --add-data "instance;instance" app.py
+      - name: Create portable zip
+        shell: pwsh
+        run: Compress-Archive -Path dist\Oleema\* -DestinationPath dist\Oleema-Portable-${{ steps.version.outputs.version }}.zip
 
-      - name: Archive artifact
-        run: |
-          Compress-Archive -Path dist\Oleema\* -DestinationPath Oleema-Windows.zip
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: Oleema-Windows
-          path: Oleema-Windows.zip
+          name: Oleema-Windows-${{ steps.version.outputs.version }}
+          path: |
+            dist/Oleema-Setup-*.exe
+            dist/Oleema-Portable-*.zip
+          if-no-files-found: error
 
-
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/Oleema-Setup-*.exe
+            dist/Oleema-Portable-*.zip

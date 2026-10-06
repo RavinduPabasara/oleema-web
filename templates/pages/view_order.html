@@ -53,6 +53,15 @@
                                 <span class="px-3 py-1 text-sm font-medium rounded-full {% if order.status == 'completed' %}bg-green-100 text-green-800{% elif order.status == 'in_progress' %}bg-yellow-100 text-yellow-800{% elif order.status == 'cancelled' %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-800{% endif %}">
                                     {{ order.status.replace('_', ' ').title() }}
                                 </span>
+                                <form method="POST" action="{{ url_for('update_order_status_route', order_id=order.id) }}" class="mt-2 flex items-center gap-2">
+                                    <select name="status" class="form-select" style="max-width: 12rem;" aria-label="Change status">
+                                        {% for value in ['pending', 'in_progress', 'completed', 'cancelled'] %}
+                                        <option value="{{ value }}" {{ 'selected' if order.status == value }}>{{ value.replace('_', ' ').title() }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+                                </form>
+                                <p class="form-help">Orders complete automatically once every active process reaches the order quantity.</p>
                             </div>
                         </div>
                         

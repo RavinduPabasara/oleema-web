@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Oleema - Production Management System{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Local fallback for Font Awesome (packaged build) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     {% block extra_css %}{% endblock %}
@@ -85,6 +83,7 @@
             <div class="sidebar-nav-section">
                 <div class="sidebar-nav-title">Security</div>
                 <ul class="sidebar-nav-list">
+                    {% if session.get('role') == 'admin' %}
                     <li class="sidebar-nav-item">
                         <a href="{{ url_for('backup') }}"
                             class="sidebar-nav-link {% if request.endpoint == 'backup' %}active{% endif %}">
@@ -92,6 +91,7 @@
                             <span class="sidebar-nav-text">Backup & Restore</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li class="sidebar-nav-item">
                         <a href="{{ url_for('change_password') }}"
                             class="sidebar-nav-link {% if request.endpoint == 'change_password' %}active{% endif %}">
@@ -113,6 +113,7 @@
                             <span class="sidebar-nav-text">Materials</span>
                         </a>
                     </li>
+                    {% if session.get('role') == 'admin' %}
                     <li class="sidebar-nav-item">
                         <a href="{{ url_for('settings') }}"
                             class="sidebar-nav-link {% if request.endpoint in ['settings', 'audit_logs'] %}active{% endif %}">
@@ -120,7 +121,6 @@
                             <span class="sidebar-nav-text">Settings</span>
                         </a>
                     </li>
-                    {% if session.get('role') == 'admin' %}
                     <li class="sidebar-nav-item">
                         <a href="{{ url_for('users') }}"
                             class="sidebar-nav-link {% if request.endpoint in ['users', 'add_user', 'edit_user'] %}active{% endif %}">
@@ -187,6 +187,7 @@
     <!-- Mobile Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
+    <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>

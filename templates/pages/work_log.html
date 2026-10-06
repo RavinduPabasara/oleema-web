@@ -40,9 +40,9 @@
                     <div class="form-group">
                         <label for="employee_id" class="form-label">Employee *</label>
                         <select id="employee_id" name="employee_id" class="form-select" required>
-                            <option value="" disabled selected>Select Employee</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('employee_id') }}>Select Employee</option>
                             {% for employee in employees %}
-                            <option value="{{ employee.id }}">{{ employee.name }} ({{ employee.employee_id }})</option>
+                            <option value="{{ employee.id }}" {{ 'selected' if prefill.get('employee_id')|string == employee.id|string }}>{{ employee.name }} ({{ employee.employee_id }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -51,9 +51,9 @@
                     <div class="form-group">
                         <label for="order_id" class="form-label">Order *</label>
                         <select id="order_id" name="order_id" class="form-select" required>
-                            <option value="" disabled selected>Select Order</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('order_id') }}>Select Order</option>
                             {% for order in orders %}
-                            <option value="{{ order.id }}">{{ order.order_no }} ({{ order.color }}, {{ order.size }},
+                            <option value="{{ order.id }}" {{ 'selected' if prefill.get('order_id')|string == order.id|string }}>{{ order.order_no }} ({{ order.color }}, {{ order.size }},
                                 Qty: {{ order.quantity }})</option>
                             {% endfor %}
                         </select>
@@ -63,9 +63,9 @@
                     <div class="form-group">
                         <label for="process_id" class="form-label">Process *</label>
                         <select id="process_id" name="process_id" class="form-select" required>
-                            <option value="" disabled selected>Select Process</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('process_id') }}>Select Process</option>
                             {% for process in processes %}
-                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}">{{ process.name }}
+                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}" {{ 'selected' if prefill.get('process_id')|string == process.id|string }}>{{ process.name }}
                                 (LKR {{ "%.2f"|format(process.pay_rate) }}/piece)</option>
                             {% endfor %}
                         </select>
@@ -75,14 +75,14 @@
                     <!-- Date Input -->
                     <div class="form-group">
                         <label for="date" class="form-label">Date *</label>
-                        <input type="date" id="date" name="date" class="form-input" value="{{ today }}" required>
+                        <input type="date" id="date" name="date" class="form-input" value="{{ prefill.get('date') or today }}" required>
                     </div>
 
                     <!-- Quantity Input -->
                     <div class="form-group">
                         <label for="quantity" class="form-label">Quantity (Pieces) *</label>
                         <input type="number" id="quantity" name="quantity" class="form-input"
-                            placeholder="Enter number of pieces" min="1" required>
+                            placeholder="Enter number of pieces" min="1" value="{{ prefill.get('quantity', '') }}" required>
                         <p class="form-help">Number of pieces processed</p>
                     </div>
 
@@ -120,7 +120,7 @@
                     <div class="form-group">
                         <label for="notes" class="form-label">Notes</label>
                         <textarea id="notes" name="notes" rows="3" class="form-input"
-                            placeholder="Any additional notes or comments..."></textarea>
+                            placeholder="Any additional notes or comments...">{{ prefill.get('notes') or '' }}</textarea>
                         <p class="form-help">Optional: Add any special notes about this work</p>
                     </div>
 
