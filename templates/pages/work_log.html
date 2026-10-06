@@ -16,13 +16,14 @@
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-6 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -32,16 +33,16 @@
                 <h3 class="card-title">Record Work Progress</h3>
                 <p class="card-subtitle">Fill in the work details below</p>
             </div>
-            
+
             <div class="card-body">
                 <form method="POST" class="space-y-6">
                     <!-- Employee Selection -->
                     <div class="form-group">
                         <label for="employee_id" class="form-label">Employee *</label>
                         <select id="employee_id" name="employee_id" class="form-select" required>
-                            <option value="" disabled selected>Select Employee</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('employee_id') }}>Select Employee</option>
                             {% for employee in employees %}
-                            <option value="{{ employee.id }}">{{ employee.name }} ({{ employee.employee_id }})</option>
+                            <option value="{{ employee.id }}" {{ 'selected' if prefill.get('employee_id')|string == employee.id|string }}>{{ employee.name }} ({{ employee.employee_id }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -50,9 +51,10 @@
                     <div class="form-group">
                         <label for="order_id" class="form-label">Order *</label>
                         <select id="order_id" name="order_id" class="form-select" required>
-                            <option value="" disabled selected>Select Order</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('order_id') }}>Select Order</option>
                             {% for order in orders %}
-                            <option value="{{ order.id }}">{{ order.order_no }} ({{ order.color }}, {{ order.size }}, Qty: {{ order.quantity }})</option>
+                            <option value="{{ order.id }}" {{ 'selected' if prefill.get('order_id')|string == order.id|string }}>{{ order.order_no }} ({{ order.color }}, {{ order.size }},
+                                Qty: {{ order.quantity }})</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -61,9 +63,10 @@
                     <div class="form-group">
                         <label for="process_id" class="form-label">Process *</label>
                         <select id="process_id" name="process_id" class="form-select" required>
-                            <option value="" disabled selected>Select Process</option>
+                            <option value="" disabled {{ 'selected' if not prefill.get('process_id') }}>Select Process</option>
                             {% for process in processes %}
-                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}">{{ process.name }} (LKR {{ "%.2f"|format(process.pay_rate) }}/piece)</option>
+                            <option value="{{ process.id }}" data-pay-rate="{{ process.pay_rate }}" {{ 'selected' if prefill.get('process_id')|string == process.id|string }}>{{ process.name }}
+                                (LKR {{ "%.2f"|format(process.pay_rate) }}/piece)</option>
                             {% endfor %}
                         </select>
                         <p class="form-help">Select the manufacturing process performed</p>
@@ -72,28 +75,14 @@
                     <!-- Date Input -->
                     <div class="form-group">
                         <label for="date" class="form-label">Date *</label>
-                        <input 
-                            type="date" 
-                            id="date" 
-                            name="date" 
-                            class="form-input" 
-                            value="{{ today }}"
-                            required
-                        >
+                        <input type="date" id="date" name="date" class="form-input" value="{{ prefill.get('date') or today }}" required>
                     </div>
 
                     <!-- Quantity Input -->
                     <div class="form-group">
                         <label for="quantity" class="form-label">Quantity (Pieces) *</label>
-                        <input 
-                            type="number" 
-                            id="quantity" 
-                            name="quantity" 
-                            class="form-input" 
-                            placeholder="Enter number of pieces"
-                            min="1"
-                            required
-                        >
+                        <input type="number" id="quantity" name="quantity" class="form-input"
+                            placeholder="Enter number of pieces" min="1" value="{{ prefill.get('quantity', '') }}" required>
                         <p class="form-help">Number of pieces processed</p>
                     </div>
 
@@ -130,13 +119,8 @@
                     <!-- Notes Input -->
                     <div class="form-group">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea 
-                            id="notes" 
-                            name="notes" 
-                            rows="3"
-                            class="form-input" 
-                            placeholder="Any additional notes or comments..."
-                        ></textarea>
+                        <textarea id="notes" name="notes" rows="3" class="form-input"
+                            placeholder="Any additional notes or comments...">{{ prefill.get('notes') or '' }}</textarea>
                         <p class="form-help">Optional: Add any special notes about this work</p>
                     </div>
 
@@ -160,7 +144,7 @@
                 <h3 class="card-title">Recent Work Logs</h3>
                 <p class="card-subtitle">Latest work activities</p>
             </div>
-            
+
             <div class="card-body">
                 {% if recent_work_logs %}
                 <div class="space-y-4">
@@ -168,7 +152,8 @@
                     <div class="border border-gray-200 rounded-lg p-4 hover:border-primary transition-all duration-200">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
-                                <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm mr-3 shadow" style="min-width: 40px; min-height: 40px; width: 40px; height: 40px;">
+                                <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold text-sm mr-3 shadow"
+                                    style="min-width: 40px; min-height: 40px; width: 40px; height: 40px;">
                                     {{ work_log.employee.name[0].upper() }}
                                 </div>
                                 <div>
@@ -177,23 +162,26 @@
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-sm font-medium text-primary">LKR {{ "%.2f"|format(work_log.quantity * work_log.process.pay_rate) }}</div>
+                                <div class="text-sm font-medium text-primary">LKR {{ "%.2f"|format(work_log.quantity *
+                                    work_log.process.pay_rate) }}</div>
                                 <div class="text-xs text-gray-500">{{ work_log.quantity }} pcs</div>
                             </div>
                         </div>
-                        
-                                                    <div class="text-sm text-gray-600">
-                                <div class="flex items-center justify-between">
-                                    <span>{{ work_log.order.order_no }}</span>
-                                    <span>{{ work_log.process.name }} (LKR {{ "%.2f"|format(work_log.process.pay_rate) }})</span>
-                                </div>
+
+                        <div class="text-sm text-gray-600">
+                            <div class="flex items-center justify-between">
+                                <span>{{ work_log.order.order_no }}</span>
+                                <span>{{ work_log.process.name }} (LKR {{ "%.2f"|format(work_log.process.pay_rate)
+                                    }})</span>
                             </div>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
                 <div class="text-center py-8">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow">
+                    <div
+                        class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 shadow">
                         <i class="fas fa-clipboard-list text-gray-400 text-xl"></i>
                     </div>
                     <p class="text-gray-500 text-sm">No recent work logs</p>
@@ -205,115 +193,115 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Set today's date as default
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date').value = today;
-    
-    // Get elements
-    const quantityInput = document.getElementById('quantity');
-    const processSelect = document.getElementById('process_id');
-    const orderSelect = document.getElementById('order_id');
-    const paymentPreview = document.getElementById('payment-preview');
-    const paymentBreakdown = document.getElementById('payment-breakdown');
-    const progressSection = document.getElementById('progress-section');
-    const progressTotal = document.getElementById('progress-total');
-    const progressBreakdown = document.getElementById('progress-breakdown');
-    const progressWarning = document.getElementById('progress-warning');
-    const warningText = document.getElementById('warning-text');
-    
-    // Store order/process totals from backend
-    const orderProcessTotals = JSON.parse('{{ order_process_totals|tojson }}');
-    
-    function updateProgress() {
-        const orderId = orderSelect.value;
-        const processId = processSelect.value;
-        const quantity = parseInt(quantityInput.value) || 0;
-        
-        if (orderId && processId) {
-            // Get order quantity from the selected option
-            const orderOption = orderSelect.options[orderSelect.selectedIndex];
-            const orderText = orderOption.textContent;
-            const orderQuantity = parseInt(orderText.match(/Qty: (\d+)/)?.[1] || 0);
-            
-            // Get current total for this order/process combination
-            const key = `${orderId}-${processId}`;
-            const currentTotal = orderProcessTotals[key] || 0;
-            const newTotal = currentTotal + quantity;
-            
-            progressSection.style.display = 'block';
-            progressTotal.textContent = `${newTotal} / ${orderQuantity} units`;
-            progressBreakdown.textContent = `Current: ${currentTotal} units + New: ${quantity} units`;
-            
-            // Check for overage
-            if (newTotal > orderQuantity) {
-                const overage = newTotal - orderQuantity;
-                progressWarning.style.display = 'block';
-                warningText.textContent = `This will create an overage of ${overage} units`;
-                progressSection.querySelector('.bg-blue-50').classList.remove('bg-blue-50', 'border-blue-200');
-                progressSection.querySelector('.bg-blue-50').classList.add('bg-red-50', 'border-red-200');
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set today's date as default
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').value = today;
+
+        // Get elements
+        const quantityInput = document.getElementById('quantity');
+        const processSelect = document.getElementById('process_id');
+        const orderSelect = document.getElementById('order_id');
+        const paymentPreview = document.getElementById('payment-preview');
+        const paymentBreakdown = document.getElementById('payment-breakdown');
+        const progressSection = document.getElementById('progress-section');
+        const progressTotal = document.getElementById('progress-total');
+        const progressBreakdown = document.getElementById('progress-breakdown');
+        const progressWarning = document.getElementById('progress-warning');
+        const warningText = document.getElementById('warning-text');
+
+        // Store order/process totals from backend
+        const orderProcessTotals = JSON.parse('{{ order_process_totals|tojson }}');
+
+        function updateProgress() {
+            const orderId = orderSelect.value;
+            const processId = processSelect.value;
+            const quantity = parseInt(quantityInput.value) || 0;
+
+            if (orderId && processId) {
+                // Get order quantity from the selected option
+                const orderOption = orderSelect.options[orderSelect.selectedIndex];
+                const orderText = orderOption.textContent;
+                const orderQuantity = parseInt(orderText.match(/Qty: (\d+)/)?.[1] || 0);
+
+                // Get current total for this order/process combination
+                const key = `${orderId}-${processId}`;
+                const currentTotal = orderProcessTotals[key] || 0;
+                const newTotal = currentTotal + quantity;
+
+                progressSection.style.display = 'block';
+                progressTotal.textContent = `${newTotal} / ${orderQuantity} units`;
+                progressBreakdown.textContent = `Current: ${currentTotal} units + New: ${quantity} units`;
+
+                // Check for overage
+                if (newTotal > orderQuantity) {
+                    const overage = newTotal - orderQuantity;
+                    progressWarning.style.display = 'block';
+                    warningText.textContent = `This will create an overage of ${overage} units`;
+                    progressSection.querySelector('.bg-blue-50').classList.remove('bg-blue-50', 'border-blue-200');
+                    progressSection.querySelector('.bg-blue-50').classList.add('bg-red-50', 'border-red-200');
+                } else {
+                    progressWarning.style.display = 'none';
+                    progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.remove('bg-red-50', 'border-red-200');
+                    progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.add('bg-blue-50', 'border-blue-200');
+                }
             } else {
-                progressWarning.style.display = 'none';
-                progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.remove('bg-red-50', 'border-red-200');
-                progressSection.querySelector('.bg-red-50, .bg-blue-50').classList.add('bg-blue-50', 'border-blue-200');
+                progressSection.style.display = 'none';
             }
-        } else {
-            progressSection.style.display = 'none';
         }
-    }
-    
-    function updatePaymentPreview() {
-        const quantity = parseInt(quantityInput.value) || 0;
-        const processOption = processSelect.options[processSelect.selectedIndex];
-        
-        if (processOption && processOption.value && quantity > 0) {
-            const payRate = parseFloat(processOption.dataset.payRate);
-            const payment = quantity * payRate;
-            
-            paymentPreview.textContent = `LKR ${payment.toFixed(2)}`;
-            paymentBreakdown.textContent = `${quantity} pieces × LKR ${payRate.toFixed(2)} per piece`;
-        } else {
-            paymentPreview.textContent = 'LKR 0.00';
-            paymentBreakdown.textContent = 'Select process and enter quantity to see payment';
+
+        function updatePaymentPreview() {
+            const quantity = parseInt(quantityInput.value) || 0;
+            const processOption = processSelect.options[processSelect.selectedIndex];
+
+            if (processOption && processOption.value && quantity > 0) {
+                const payRate = parseFloat(processOption.dataset.payRate);
+                const payment = quantity * payRate;
+
+                paymentPreview.textContent = `LKR ${payment.toFixed(2)}`;
+                paymentBreakdown.textContent = `${quantity} pieces × LKR ${payRate.toFixed(2)} per piece`;
+            } else {
+                paymentPreview.textContent = 'LKR 0.00';
+                paymentBreakdown.textContent = 'Select process and enter quantity to see payment';
+            }
         }
-    }
-    
-    // Event listeners
-    quantityInput.addEventListener('input', function() {
-        updatePaymentPreview();
-        updateProgress();
-    });
-    
-    processSelect.addEventListener('change', function() {
-        updatePaymentPreview();
-        updateProgress();
-    });
-    
-    orderSelect.addEventListener('change', updateProgress);
-    
-    // Initial calculations
-    updatePaymentPreview();
-    updateProgress();
-    
-    // Manual form submission trigger
-    const form = document.querySelector('form');
-    const submitBtn = document.getElementById('submit-btn');
-    
-    submitBtn.addEventListener('click', function(e) {
-        console.log('Work log submit button clicked!');
-        console.log('Form data:', {
-            employee_id: document.getElementById('employee_id').value,
-            order_id: document.getElementById('order_id').value,
-            process_id: document.getElementById('process_id').value,
-            date: document.getElementById('date').value,
-            quantity: document.getElementById('quantity').value,
-            notes: document.getElementById('notes').value
+
+        // Event listeners
+        quantityInput.addEventListener('input', function () {
+            updatePaymentPreview();
+            updateProgress();
         });
-        
-        // Manually trigger form submission
-        console.log('Manually submitting work log form...');
-        form.submit();
+
+        processSelect.addEventListener('change', function () {
+            updatePaymentPreview();
+            updateProgress();
+        });
+
+        orderSelect.addEventListener('change', updateProgress);
+
+        // Initial calculations
+        updatePaymentPreview();
+        updateProgress();
+
+        // Manual form submission trigger
+        const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submit-btn');
+
+        submitBtn.addEventListener('click', function (e) {
+            console.log('Work log submit button clicked!');
+            console.log('Form data:', {
+                employee_id: document.getElementById('employee_id').value,
+                order_id: document.getElementById('order_id').value,
+                process_id: document.getElementById('process_id').value,
+                date: document.getElementById('date').value,
+                quantity: document.getElementById('quantity').value,
+                notes: document.getElementById('notes').value
+            });
+
+            // Manually trigger form submission
+            console.log('Manually submitting work log form...');
+            form.submit();
+        });
     });
-});
 </script>
-{% endblock %} 
+{% endblock %}

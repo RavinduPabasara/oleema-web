@@ -199,10 +199,10 @@ const Charts = {
         new Chart(productionCtx, {
           type: 'line',
           data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            labels: JSON.parse(productionCtx.dataset.labels || '[]'),
             datasets: [{
               label: 'Production Units',
-              data: [1200, 1350, 1100, 1400, 1600, 1800],
+              data: JSON.parse(productionCtx.dataset.values || '[]'),
               borderColor: '#3b82f6',
               backgroundColor: 'rgba(59, 130, 246, 0.1)',
               tension: 0.4
@@ -210,6 +210,7 @@ const Charts = {
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
               legend: {
                 display: false

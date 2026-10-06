@@ -1,8 +1,8 @@
 Flask==2.3.3
 Werkzeug==2.3.7
 Flask-SQLAlchemy==3.0.5
-Flask-Login==0.6.3
-Werkzeug==2.3.7
-python-dotenv==1.0.0
+SQLAlchemy>=2.0,<2.1
 reportlab==4.0.4
-
+waitress>=3.0,<4
+# Native desktop window (Microsoft Edge WebView2 on Windows). Elsewhere the app opens in the browser.
+pywebview>=5.0,<6; sys_platform == "win32"

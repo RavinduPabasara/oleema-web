@@ -2,22 +2,83 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from models import db, User, Employee, Process, Order, WorkLog, Payment, OrderStatus, Overage, WorkLogOverage, Setting, AuditLog, Material, InventoryTransaction, BillOfMaterials
 from datetime import datetime, timedelta, date
-from sqlalchemy import func, extract, and_, inspect
+from sqlalchemy import func, extract, and_, inspect, text
 import os
 import sys
 import shutil
+import secrets
+import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from io import BytesIO
 import csv
 import io
 from functools import wraps
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)
+# --- Paths -------------------------------------------------------------------
+# RESOURCE_DIR: bundled read-only files (templates, static). Inside the PyInstaller build
+#   this is the unpacked bundle folder.
+# DATA_DIR: the database and backups. The packaged desktop app uses
+#   %APPDATA%\Oleema so data survives upgrades and reinstalls; running from source keeps
+#   using the project folder. OLEEMA_DATA_DIR overrides both.
+def _resource_dir():
+    return getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+def _data_dir():
+    override = os.environ.get('OLEEMA_DATA_DIR')
+    if override:
+        return os.path.abspath(override)
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.environ.get('APPDATA') or os.path.expanduser('~'), 'Oleema')
+    return os.path.dirname(os.path.abspath(__file__))
+
+RESOURCE_DIR = _resource_dir()
+BASE_DIR = _data_dir()
+os.makedirs(BASE_DIR, exist_ok=True)
+DATABASE_PATH = os.path.join(BASE_DIR, 'oleema.db')
+BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
+os.makedirs(BACKUP_DIR, exist_ok=True)
+
+def _migrate_portable_data():
+    """Older Windows builds kept oleema.db next to Oleema.exe. Carry it over on first run."""
+    if not getattr(sys, 'frozen', False) or os.environ.get('OLEEMA_DATA_DIR') or os.path.exists(DATABASE_PATH):
+        return
+    old_dir = os.path.dirname(sys.executable)
+    old_db = os.path.join(old_dir, 'oleema.db')
+    if os.path.exists(old_db):
+        shutil.copy2(old_db, DATABASE_PATH)
+        old_backups = os.path.join(old_dir, 'backups')
+        if os.path.isdir(old_backups):
+            for name in os.listdir(old_backups):
+                if name.startswith('oleema_backup_') and name.endswith('.db'):
+                    shutil.copy2(os.path.join(old_backups, name), os.path.join(BACKUP_DIR, name))
+
+_migrate_portable_data()
+
+def _secret_key():
+    """Keep the same key across restarts so logins survive an app restart."""
+    key_file = os.path.join(BASE_DIR, 'secret.key')
+    try:
+        with open(key_file) as f:
+            key = f.read().strip()
+        if key:
+            return key
+    except OSError:
+        pass
+    key = secrets.token_hex(32)
+    with open(key_file, 'w') as f:
+        f.write(key)
+    return key
+
+app = Flask(__name__,
+            template_folder=os.path.join(RESOURCE_DIR, 'templates'),
+            static_folder=os.path.join(RESOURCE_DIR, 'static'),
+            instance_path=BASE_DIR)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or _secret_key()
 
 # Admin required decorator
 def admin_required(f):
@@ -47,16 +108,6 @@ def log_audit(action, entity_type, entity_id, details):
         # Don't fail the main operation if audit logging fails
         db.session.rollback()
 
-# Helper function to resolve base directory robustly for both normal and frozen (PyInstaller) runs
-def _resolve_base_dir():
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
-
-BASE_DIR = _resolve_base_dir()
-DATABASE_PATH = os.path.join(BASE_DIR, 'oleema.db')
-INSTANCE_DB_PATH = os.path.join(BASE_DIR, 'instance', 'oleema.db')
-
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DATABASE_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -66,87 +117,129 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 # Initialize database
 db.init_app(app)
 
-# Ensure database exists and is initialized (first run handling)
-with app.app_context():
-    try:
-        # Ensure containing directory exists
-        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-    except Exception:
-        pass
-    try:
-        existing_tables = set(inspect(db.engine).get_table_names())
-        if 'users' not in existing_tables:
-            db.create_all()
-            # Seed default admin
-            if not User.query.first():
-                admin_user = User(username='admin', role='admin')
-                admin_user.set_password('admin123')
-                db.session.add(admin_user)
-            # Seed sample processes
-            if not Process.query.first():
-                processes = [
-                    Process(name='Cutting', pay_rate=5.0, description='Fabric cutting process'),
-                    Process(name='Sewing', pay_rate=8.0, description='Garment sewing process'),
-                    Process(name='Finishing', pay_rate=3.0, description='Final finishing process'),
-                    Process(name='Quality Check', pay_rate=4.0, description='Quality control process'),
-                ]
-                db.session.add_all(processes)
-            db.session.commit()
-    except Exception as e:
-        print(f"Database initialization check failed: {e}")
+DEFAULT_SETTINGS = [
+    ('company_name', 'Oleema Industries', 'Company name'),
+    ('currency_symbol', 'LKR', 'Currency symbol'),
+    ('items_per_page', '10', 'Items per page in lists'),
+]
 
-# Create backup directory if it doesn't exist
-BACKUP_DIR = os.path.join(BASE_DIR, 'backups')
-if not os.path.exists(BACKUP_DIR):
-    os.makedirs(BACKUP_DIR)
+def upgrade_schema():
+    """Add columns that exist on the models but not in an older database file.
+
+    db.create_all() creates missing tables but never adds missing columns.
+    """
+    inspector = inspect(db.engine)
+    with db.engine.begin() as conn:
+        for table in db.metadata.sorted_tables:
+            if not inspector.has_table(table.name):
+                continue
+            existing = {col['name'] for col in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name not in existing:
+                    col_type = column.type.compile(dialect=db.engine.dialect)
+                    conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {col_type}'))
+
+def init_database():
+    """Create/upgrade tables and seed defaults. Safe to run on every start."""
+    is_new = 'users' not in set(inspect(db.engine).get_table_names())
+    db.create_all()
+    upgrade_schema()
+    if not User.query.first():
+        admin_user = User(username='admin', role='admin')
+        admin_user.set_password('admin123')
+        db.session.add(admin_user)
+    if is_new and not Process.query.first():
+        db.session.add_all([
+            Process(name='Cutting', pay_rate=5.0, description='Fabric cutting process'),
+            Process(name='Sewing', pay_rate=8.0, description='Garment sewing process'),
+            Process(name='Finishing', pay_rate=3.0, description='Final finishing process'),
+            Process(name='Quality Check', pay_rate=4.0, description='Quality control process'),
+        ])
+    for key, value, description in DEFAULT_SETTINGS:
+        if not db.session.get(Setting, key):
+            db.session.add(Setting(key=key, value=value, description=description))
+    db.session.commit()
+
+with app.app_context():
+    init_database()
+
+BACKUPS_TO_KEEP = 30
+
+def _list_backups():
+    """Backup files in BACKUP_DIR, newest first, as (created, path)."""
+    backups = []
+    for filename in os.listdir(BACKUP_DIR):
+        if filename.startswith('oleema_backup_') and filename.endswith('.db'):
+            file_path = os.path.join(BACKUP_DIR, filename)
+            backups.append((datetime.fromtimestamp(os.path.getmtime(file_path)), file_path))
+    backups.sort(key=lambda b: b[0], reverse=True)
+    return backups
 
 def create_backup():
-    """Create a backup of the database"""
+    """Create a backup of the database (consistent even while the app is running)"""
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f'oleema_backup_{timestamp}.db'
-        backup_path = os.path.join(BACKUP_DIR, backup_filename)
-        
-        # Copy the database file
-        shutil.copy2(DATABASE_PATH, backup_path)
-        
-        # Keep only last 7 days of backups
+        backup_path = os.path.join(BACKUP_DIR, f'oleema_backup_{timestamp}.db')
+        counter = 1
+        while os.path.exists(backup_path):  # never overwrite a backup made in the same second
+            backup_path = os.path.join(BACKUP_DIR, f'oleema_backup_{timestamp}_{counter}.db')
+            counter += 1
+        source = sqlite3.connect(DATABASE_PATH)
+        target = sqlite3.connect(backup_path)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+            source.close()
         cleanup_old_backups()
-        
         return True, backup_path
     except Exception as e:
         return False, str(e)
 
 def cleanup_old_backups():
-    """Remove backups older than 7 days"""
+    """Keep the newest BACKUPS_TO_KEEP backups (by count, so old ones are never all lost)"""
     try:
-        current_time = datetime.now()
-        for filename in os.listdir(BACKUP_DIR):
-            if filename.startswith('oleema_backup_') and filename.endswith('.db'):
-                file_path = os.path.join(BACKUP_DIR, filename)
-                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
-                if (current_time - file_time).days > 7:
-                    os.remove(file_path)
+        for _, file_path in _list_backups()[BACKUPS_TO_KEEP:]:
+            os.remove(file_path)
     except Exception as e:
         print(f"Error cleaning up old backups: {e}")
 
 def get_last_backup_info():
     """Get information about the last backup"""
     try:
-        backups = []
-        for filename in os.listdir(BACKUP_DIR):
-            if filename.startswith('oleema_backup_') and filename.endswith('.db'):
-                file_path = os.path.join(BACKUP_DIR, filename)
-                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
-                backups.append((file_time, file_path))
-        
+        backups = _list_backups()
         if backups:
-            latest_backup = max(backups, key=lambda x: x[0])
-            return latest_backup[0], latest_backup[1]
+            return backups[0]
         return None, None
     except Exception as e:
         print(f"Error getting backup info: {e}")
         return None, None
+
+def auto_backup_if_due(max_age=timedelta(hours=24)):
+    """Take a backup if the newest one is older than max_age (called at app start)"""
+    last_time, _ = get_last_backup_info()
+    if os.path.exists(DATABASE_PATH) and (last_time is None or datetime.now() - last_time > max_age):
+        return create_backup()
+    return None
+
+def restore_backup(filename):
+    """Replace the live database with a backup from BACKUP_DIR"""
+    filename = os.path.basename(filename or '')
+    backup_path = os.path.join(BACKUP_DIR, filename)
+    if not (filename.startswith('oleema_backup_') and filename.endswith('.db') and os.path.exists(backup_path)):
+        raise ValueError('Invalid backup file selected')
+    create_backup()  # safety copy of the current state
+    db.session.remove()
+    db.engine.dispose()
+    source = sqlite3.connect(backup_path)
+    target = sqlite3.connect(DATABASE_PATH)
+    try:
+        source.backup(target)
+    finally:
+        target.close()
+        source.close()
+    db.engine.dispose()
+    init_database()  # bring an older backup up to the current schema
 
 def check_session_timeout():
     """Check if session has timed out"""
@@ -182,10 +275,10 @@ def inject_settings():
         all_settings = Setting.query.all()
         for setting in all_settings:
             settings_dict[setting.key] = setting.value
-        return dict(app_settings=settings_dict)
-    except:
+        return dict(app_settings=settings_dict, settings=settings_dict)
+    except Exception:
         # If settings table doesn't exist yet, return empty dict
-        return dict(app_settings={})
+        return dict(app_settings={}, settings={})
 
 @app.route('/')
 def index():
@@ -333,10 +426,15 @@ def new_order():
         date_str = request.form.get('date')
         color = request.form.get('color')
         size = request.form.get('size')
-        quantity = int(request.form.get('quantity', 0))
+        try:
+            quantity = int(request.form.get('quantity') or 0)
+        except ValueError:
+            quantity = 0
         notes = request.form.get('notes')
         
-        if not all([order_no, date_str, color, size, quantity]):
+        if quantity < 1:
+            flash('Quantity must be a whole number of at least 1', 'error')
+        elif not all([order_no, date_str, color, size]):
             flash('Please fill in all required fields', 'error')
         else:
             # Check if order number already exists
@@ -407,6 +505,27 @@ def view_order(order_id):
                          progress_percent=overall_progress,
                          process_progress=process_progress)
 
+@app.route('/orders/<int:order_id>/status', methods=['POST'])
+def update_order_status_route(order_id):
+    """Manually change an order's status"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    order = Order.query.get_or_404(order_id)
+    status = request.form.get('status')
+    if status not in ORDER_STATUSES:
+        flash('Invalid status.', 'error')
+        return redirect(url_for('view_order', order_id=order.id))
+    if status != order.status:
+        old_status = order.status
+        order.status = status
+        db.session.add(OrderStatus(order_id=order.id, status=status,
+                                   notes=request.form.get('notes') or f'Changed from {old_status} by {session.get("username")}'))
+        db.session.commit()
+        log_audit('Update Order Status', 'Order', order.id, f'{order.order_no}: {old_status} -> {status}')
+        flash(f'Order status changed to {status.replace("_", " ").title()}.', 'success')
+    return redirect(url_for('view_order', order_id=order.id))
+
 @app.route('/api/orders')
 def api_orders():
     """API endpoint to get orders for dropdown"""
@@ -467,63 +586,130 @@ def cleanup_overages_for_process(process_id):
         print(f"Error cleaning up overages for process {process_id}: {e}")
         return False
 
-def check_and_create_overage(order_id, process_id, new_quantity):
-    """Check if adding new work log creates an overage and handle it"""
+ORDER_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled']
+
+class FormError(ValueError):
+    """Validation error whose message is safe to show to the user."""
+
+def parse_int(value, label, minimum=None):
     try:
-        # Validate inputs
-        if not order_id or not process_id or not new_quantity:
-            return False, "Invalid input parameters"
-        
-        order = Order.query.get(order_id)
-        process = Process.query.get(process_id)
-        
-        if not order or not process:
-            return False, "Order or process not found"
-        
-        # Calculate current total for this process
-        existing_work_logs = WorkLog.query.filter_by(
-            order_id=order_id, 
-            process_id=process_id
-        ).all()
-        
-        current_total = sum(wl.quantity for wl in existing_work_logs)
-        new_total = current_total + new_quantity
-        
-        # Check if this creates an overage
-        if new_total > order.quantity:
-            overage_units = new_total - order.quantity
-            
-            # Check if overage already exists for this order/process
-            existing_overage = Overage.query.filter_by(
-                order_id=order_id,
-                process_id=process_id,
-                status='pending'
-            ).first()
-            
-            if existing_overage:
-                # Update existing overage
-                existing_overage.actual_units = new_total
-                existing_overage.overage_units = overage_units
-            else:
-                # Create new overage
-                overage = Overage(
-                    order_id=order_id,
-                    process_id=process_id,
-                    expected_units=order.quantity,
-                    actual_units=new_total,
-                    overage_units=overage_units
-                )
-                db.session.add(overage)
-            
-            db.session.commit()
-            return True, f"Overage detected: {overage_units} units over limit"
-        
-        return False, "No overage"
-        
-    except Exception as e:
-        print(f"Error in check_and_create_overage: {e}")
-        db.session.rollback()
-        return False, f"Error creating overage: {str(e)}"
+        number = int(value)
+    except (TypeError, ValueError):
+        raise FormError(f'{label} is required and must be a whole number.')
+    if minimum is not None and number < minimum:
+        raise FormError(f'{label} must be at least {minimum}.')
+    return number
+
+def parse_float(value, label, minimum=None, default=None):
+    if value in (None, '') and default is not None:
+        return default
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise FormError(f'{label} must be a number.')
+    if minimum is not None and number < minimum:
+        raise FormError(f'{label} cannot be less than {minimum}.')
+    return number
+
+def parse_date(value, label='Date'):
+    try:
+        return datetime.strptime(value or '', '%Y-%m-%d').date()
+    except ValueError:
+        raise FormError(f'{label} must be a valid date.')
+
+def parse_work_log_form(form):
+    """Validate the work log form. Returns a dict of clean values."""
+    data = {
+        'employee_id': parse_int(form.get('employee_id'), 'Employee'),
+        'order_id': parse_int(form.get('order_id'), 'Order'),
+        'process_id': parse_int(form.get('process_id'), 'Process'),
+        'quantity': parse_int(form.get('quantity'), 'Quantity', minimum=1),
+        'date': parse_date(form.get('date')).strftime('%Y-%m-%d'),
+        'notes': form.get('notes') or '',
+    }
+    if not db.session.get(Employee, data['employee_id']):
+        raise FormError('Selected employee does not exist.')
+    if not db.session.get(Order, data['order_id']):
+        raise FormError('Selected order does not exist.')
+    if not db.session.get(Process, data['process_id']):
+        raise FormError('Selected process does not exist.')
+    return data
+
+def process_total(order_id, process_id, exclude_work_log_id=None):
+    query = db.session.query(func.coalesce(func.sum(WorkLog.quantity), 0)).filter(
+        WorkLog.order_id == order_id, WorkLog.process_id == process_id)
+    if exclude_work_log_id is not None:
+        query = query.filter(WorkLog.id != exclude_work_log_id)
+    return query.scalar()
+
+def detect_overage(order_id, process_id, quantity, exclude_work_log_id=None):
+    """Return the number of units over the order quantity this entry would cause (0 if none). No DB writes."""
+    order = db.session.get(Order, order_id)
+    new_total = process_total(order_id, process_id, exclude_work_log_id) + quantity
+    return max(new_total - order.quantity, 0)
+
+def sync_overage(order_id, process_id):
+    """Make the pending overage record for an order/process match the work actually logged.
+
+    Creates or updates a pending overage when logged units exceed the order quantity and
+    removes it when they no longer do. Resolved overages are kept as history.
+    """
+    order = db.session.get(Order, order_id)
+    if not order:
+        return
+    total = process_total(order_id, process_id)
+    pending = Overage.query.filter_by(order_id=order_id, process_id=process_id, status='pending').first()
+    if total > order.quantity:
+        resolved = Overage.query.filter_by(order_id=order_id, process_id=process_id, status='resolved')\
+            .order_by(Overage.actual_units.desc()).first()
+        if pending:
+            pending.expected_units = order.quantity
+            pending.actual_units = total
+            pending.overage_units = total - order.quantity
+        elif not resolved or total > resolved.actual_units:
+            db.session.add(Overage(order_id=order_id, process_id=process_id, expected_units=order.quantity,
+                                   actual_units=total, overage_units=total - order.quantity))
+    elif pending:
+        WorkLogOverage.query.filter_by(overage_id=pending.id).delete()
+        db.session.delete(pending)
+
+def update_order_status(order):
+    """Move an order forward automatically: pending -> in_progress when work is logged,
+    in_progress -> completed once every active process has logged the full quantity.
+    Never moves backwards, so manual changes (e.g. cancelled) are respected."""
+    if not order or order.status in ('completed', 'cancelled'):
+        return
+    has_work = WorkLog.query.filter_by(order_id=order.id).first() is not None
+    if order.status == 'pending' and has_work:
+        order.status = 'in_progress'
+    active_processes = Process.query.filter_by(is_active=True).all()
+    if order.status == 'in_progress' and active_processes and all(
+            process_total(order.id, p.id) >= order.quantity for p in active_processes):
+        order.status = 'completed'
+        db.session.add(OrderStatus(order_id=order.id, status='completed',
+                                   notes='Automatically completed: all processes reached the order quantity'))
+
+def after_work_log_change(*order_process_pairs):
+    """Re-sync overages and order status for each (order_id, process_id) touched."""
+    db.session.flush()
+    for order_id, process_id in set(order_process_pairs):
+        sync_overage(order_id, process_id)
+    for order_id in {order_id for order_id, _ in order_process_pairs}:
+        update_order_status(db.session.get(Order, order_id))
+
+def save_work_log(data):
+    work_log = WorkLog(
+        employee_id=data['employee_id'],
+        order_id=data['order_id'],
+        process_id=data['process_id'],
+        quantity=data['quantity'],
+        date=datetime.strptime(data['date'], '%Y-%m-%d').date(),
+        notes=data['notes'],
+    )
+    db.session.add(work_log)
+    after_work_log_change((data['order_id'], data['process_id']))
+    db.session.commit()
+    return work_log
 
 @app.route('/overages')
 def overages():
@@ -609,63 +795,26 @@ def work_log():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
     
+    prefill = session.pop('work_log_prefill', None)
+
     if request.method == 'POST':
-        print("POST request received to /work-log")
-        print("Form data:", request.form)
-        
-        employee_id = int(request.form.get('employee_id'))
-        order_id = int(request.form.get('order_id'))
-        process_id = int(request.form.get('process_id'))
-        quantity = int(request.form.get('quantity', 0))
-        date_str = request.form.get('date')
-        notes = request.form.get('notes')
-        
-        print(f"Parsed data: employee_id={employee_id}, order_id={order_id}, process_id={process_id}, quantity={quantity}, date={date_str}")
-        
-        if not all([employee_id, order_id, process_id, quantity, date_str]):
-            print("Validation failed - missing required fields")
-            flash('Please fill in all required fields', 'error')
-        else:
-            # Check for overage before creating work log
-            has_overage, overage_message = check_and_create_overage(order_id, process_id, quantity)
-            
-            if has_overage:
-                # Store work log data in session for approval
-                session['pending_work_log'] = {
-                    'employee_id': employee_id,
-                    'order_id': order_id,
-                    'process_id': process_id,
-                    'quantity': quantity,
-                    'date': date_str,
-                    'notes': notes,
-                    'overage_message': overage_message
-                }
-                flash(f'Overage detected! {overage_message} Please review and approve.', 'warning')
+        try:
+            data = parse_work_log_form(request.form)
+            overage_units = detect_overage(data['order_id'], data['process_id'], data['quantity'])
+            if overage_units:
+                # Nothing is saved until the overage is approved
+                data['overage_message'] = f"Overage detected: {overage_units} units over limit"
+                session['pending_work_log'] = data
+                flash(f"Overage detected! {data['overage_message']} Please review and approve.", 'warning')
                 return redirect(url_for('approve_overage'))
-            
-            # No overage, proceed normally
-            work_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            work_log = WorkLog(
-                employee_id=employee_id,
-                order_id=order_id,
-                process_id=process_id,
-                quantity=quantity,
-                date=work_date,
-                notes=notes
-            )
-            db.session.add(work_log)
-            
-            # Update order status to 'in_progress' if this is the first work log
-            order = Order.query.get(order_id)
-            if order and order.status == 'pending':
-                order.status = 'in_progress'
-                print(f"Updated order {order.order_no} status to in_progress")
-            
-            db.session.commit()
-            print(f"Work log created successfully for employee {employee_id}, order {order_id}, process {process_id}")
+            save_work_log(data)
             flash('Work log added successfully!', 'success')
             return redirect(url_for('work_log'))
-    
+        except FormError as e:
+            db.session.rollback()
+            flash(str(e), 'error')
+            prefill = request.form.to_dict()
+
     # Get data for dropdowns
     employees = Employee.query.filter_by(is_active=True).all()
     orders = Order.query.filter(Order.status.in_(['pending', 'in_progress'])).all()
@@ -685,6 +834,7 @@ def work_log():
             order_process_totals[f"{order.id}-{process.id}"] = total
     
     return render_template('pages/work_log.html',
+                         prefill=prefill or {},
                          employees=employees,
                          orders=orders,
                          processes=processes,
@@ -707,33 +857,14 @@ def approve_overage():
         action = request.form.get('action')
         
         if action == 'approve':
-            # Create the work log with overage
-            work_date = datetime.strptime(pending_work_log['date'], '%Y-%m-%d').date()
-            work_log = WorkLog(
-                employee_id=pending_work_log['employee_id'],
-                order_id=pending_work_log['order_id'],
-                process_id=pending_work_log['process_id'],
-                quantity=pending_work_log['quantity'],
-                date=work_date,
-                notes=pending_work_log['notes']
-            )
-            db.session.add(work_log)
-            
-            # Update order status
-            order = Order.query.get(pending_work_log['order_id'])
-            if order and order.status == 'pending':
-                order.status = 'in_progress'
-            
-            db.session.commit()
-            
-            # Clear session
+            save_work_log(pending_work_log)
             session.pop('pending_work_log', None)
-            
             flash('Work log approved and created with overage!', 'success')
             return redirect(url_for('work_log'))
         
         elif action == 'edit':
-            # Return to work log form with pre-filled data
+            # Return to the work log form with the entered values filled in
+            session['work_log_prefill'] = session.pop('pending_work_log', None)
             return redirect(url_for('work_log'))
         
         elif action == 'cancel':
@@ -743,9 +874,9 @@ def approve_overage():
             return redirect(url_for('work_log'))
     
     # Get order and process details for display
-    order = Order.query.get(pending_work_log['order_id'])
-    process = Process.query.get(pending_work_log['process_id'])
-    employee = Employee.query.get(pending_work_log['employee_id'])
+    order = db.session.get(Order, pending_work_log['order_id'])
+    process = db.session.get(Process, pending_work_log['process_id'])
+    employee = db.session.get(Employee, pending_work_log['employee_id'])
     
     return render_template('pages/approve_overage.html',
                          pending_work_log=pending_work_log,
@@ -762,6 +893,69 @@ def work_logs():
     work_logs = WorkLog.query.order_by(WorkLog.date.desc()).all()
     return render_template('pages/work_logs.html', work_logs=work_logs)
 
+@app.route('/work-logs/archive', methods=['POST'])
+@admin_required
+def archive_work_logs():
+    """Archive all work logs to CSV and clear table"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    try:
+        work_logs = WorkLog.query.all()
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Employee ID', 'Employee Name', 'Order No', 'Process', 'Quantity', 'Rate/Piece', 'Date', 'Notes'])
+        
+        for wl in work_logs:
+            writer.writerow([
+                wl.id,
+                wl.employee.employee_id if wl.employee else '',
+                wl.employee.name if wl.employee else '',
+                wl.order.order_no if wl.order else '',
+                wl.process.name if wl.process else '',
+                wl.quantity,
+                wl.process.pay_rate if wl.process else 0,
+                wl.date.strftime('%Y-%m-%d') if wl.date else '',
+                wl.notes or ''
+            ])
+            
+        csv_data = output.getvalue()
+        
+        # Safety net: keep a full database backup from just before the clear
+        ok, backup_result = create_backup()
+        if not ok:
+            flash(f'Archive cancelled: could not create a backup first ({backup_result}).', 'error')
+            return redirect(url_for('work_logs'))
+        
+        archived_count = len(work_logs)
+        # Clear child tables first
+        WorkLogOverage.query.delete()
+        # Pending overages refer to the cleared work; resolved ones stay as history
+        Overage.query.filter_by(status='pending').delete()
+        # Clear main table
+        WorkLog.query.delete()
+        db.session.commit()
+        log_audit('Archive Work Logs', 'WorkLog', None,
+                  f'Archived {archived_count} work logs; backup {os.path.basename(backup_result)}')
+        
+        # Send file directly
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        return send_file(
+            io.BytesIO(csv_data.encode('utf-8-sig')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'work_logs_archive_{timestamp}.csv'
+        )
+        
+    except Exception as e:
+        print(f"Error archiving work logs: {e}")
+        db.session.rollback()
+        flash('Error archiving work logs. Please try again.', 'error')
+        return redirect(url_for('work_logs'))
+
 @app.route('/work-logs/<int:work_log_id>/edit', methods=['GET', 'POST'])
 def edit_work_log(work_log_id):
     """Edit work log with overage detection"""
@@ -771,58 +965,31 @@ def edit_work_log(work_log_id):
     work_log = WorkLog.query.get_or_404(work_log_id)
     
     if request.method == 'POST':
-        print("POST request received to /work-logs/edit")
-        print("Form data:", request.form)
-        
-        employee_id = int(request.form.get('employee_id'))
-        order_id = int(request.form.get('order_id'))
-        process_id = int(request.form.get('process_id'))
-        quantity = int(request.form.get('quantity', 0))
-        date_str = request.form.get('date')
-        notes = request.form.get('notes')
-        
-        print(f"Parsed data: employee_id={employee_id}, order_id={order_id}, process_id={process_id}, quantity={quantity}, date={date_str}")
-        
-        if not all([employee_id, order_id, process_id, quantity, date_str]):
-            print("Validation failed - missing required fields")
-            flash('Please fill in all required fields', 'error')
-        else:
-            # Calculate current total excluding this work log
-            current_total = db.session.query(func.sum(WorkLog.quantity)).filter(
-                and_(
-                    WorkLog.order_id == order_id,
-                    WorkLog.process_id == process_id,
-                    WorkLog.id != work_log_id
-                )
-            ).scalar() or 0
-            
-            new_total = current_total + quantity
-            order = Order.query.get(order_id)
-            
-            # Check for overage
-            if new_total > order.quantity:
-                overage_units = new_total - order.quantity
-                flash(f'Warning: This will create an overage of {overage_units} units. The work log will still be updated.', 'warning')
-            
-            work_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            
-            # Update work log
-            work_log.employee_id = employee_id
-            work_log.order_id = order_id
-            work_log.process_id = process_id
-            work_log.quantity = quantity
-            work_log.date = work_date
-            work_log.notes = notes
-            
+        try:
+            data = parse_work_log_form(request.form)
+            overage_units = detect_overage(data['order_id'], data['process_id'], data['quantity'],
+                                           exclude_work_log_id=work_log.id)
+            if overage_units:
+                flash(f'Warning: This creates an overage of {overage_units} units. It has been recorded for review.', 'warning')
+            previous = (work_log.order_id, work_log.process_id)
+            work_log.employee_id = data['employee_id']
+            work_log.order_id = data['order_id']
+            work_log.process_id = data['process_id']
+            work_log.quantity = data['quantity']
+            work_log.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            work_log.notes = data['notes']
+            after_work_log_change(previous, (data['order_id'], data['process_id']))
             db.session.commit()
-            print(f"Work log updated successfully: {work_log.id}")
             flash('Work log updated successfully!', 'success')
             return redirect(url_for('work_logs'))
+        except FormError as e:
+            db.session.rollback()
+            flash(str(e), 'error')
     
-    # Get data for dropdowns
-    employees = Employee.query.filter_by(is_active=True).all()
-    orders = Order.query.filter(Order.status.in_(['pending', 'in_progress'])).all()
-    processes = Process.query.filter_by(is_active=True).all()
+    # Get data for dropdowns (always include the entry's current employee/order/process)
+    employees = Employee.query.filter((Employee.is_active == True) | (Employee.id == work_log.employee_id)).all()
+    orders = Order.query.filter(Order.status.in_(['pending', 'in_progress']) | (Order.id == work_log.order_id)).all()
+    processes = Process.query.filter((Process.is_active == True) | (Process.id == work_log.process_id)).all()
     
     # Calculate current total excluding this work log
     current_total = db.session.query(func.sum(WorkLog.quantity)).filter(
@@ -848,9 +1015,10 @@ def delete_work_log(work_log_id):
     
     work_log = WorkLog.query.get_or_404(work_log_id)
     
-    print(f"Deleting work log {work_log_id}: {work_log.employee.name} - {work_log.order.order_no} - {work_log.process.name}")
-    
+    affected = (work_log.order_id, work_log.process_id)
+    WorkLogOverage.query.filter_by(work_log_id=work_log.id).delete()
     db.session.delete(work_log)
+    after_work_log_change(affected)
     db.session.commit()
     
     flash('Work log deleted successfully!', 'success')
@@ -1080,12 +1248,11 @@ def download_payment_report_pdf():
     
     try:
         # Get form data
-        employee_id = int(request.form.get('employee_id'))
-        month = int(request.form.get('month'))
-        year = int(request.form.get('year'))
-        
-        # Validate inputs
-        if not all([employee_id, month, year]):
+        try:
+            employee_id = int(request.form.get('employee_id'))
+            month = int(request.form.get('month'))
+            year = int(request.form.get('year'))
+        except (TypeError, ValueError):
             flash('Please fill in all fields', 'error')
             return redirect(url_for('payment_report'))
         
@@ -1321,12 +1488,13 @@ def add_process():
         print("Form data:", request.form)
         
         name = request.form.get('name')
-        pay_rate = float(request.form.get('pay_rate', 0))
+        try:
+            pay_rate = parse_float(request.form.get('pay_rate'), 'Pay rate', minimum=0)
+        except FormError:
+            pay_rate = None
         description = request.form.get('description')
         
-        print(f"Parsed data: name={name}, pay_rate={pay_rate}, description={description}")
-        
-        if not all([name, pay_rate]):
+        if not name or not pay_rate:
             print("Validation failed - missing required fields")
             flash('Please fill in all required fields', 'error')
         else:
@@ -1352,8 +1520,16 @@ def edit_process(process_id):
     process = Process.query.get_or_404(process_id)
     
     if request.method == 'POST':
+        try:
+            pay_rate = parse_float(request.form.get('pay_rate'), 'Pay rate', minimum=0)
+        except FormError as e:
+            flash(str(e), 'error')
+            return render_template('pages/edit_process.html', process=process)
+        if not request.form.get('name'):
+            flash('Process name is required', 'error')
+            return render_template('pages/edit_process.html', process=process)
         process.name = request.form.get('name')
-        process.pay_rate = float(request.form.get('pay_rate', 0))
+        process.pay_rate = pay_rate
         process.description = request.form.get('description')
         process.is_active = 'is_active' in request.form
         
@@ -1392,6 +1568,7 @@ def change_password():
     return render_template('pages/change_password.html')
 
 @app.route('/backup', methods=['GET', 'POST'])
+@admin_required
 def backup():
     """Backup management page"""
     if not session.get('logged_in'):
@@ -1407,19 +1584,11 @@ def backup():
             else:
                 flash(f'Backup failed: {result}', 'error')
         elif action == 'restore_backup':
-            backup_file = request.form.get('backup_file')
-            if backup_file and os.path.exists(backup_file):
-                try:
-                    # Create a backup before restoring
-                    create_backup()
-                    
-                    # Restore the selected backup
-                    shutil.copy2(backup_file, DATABASE_PATH)
-                    flash('Database restored successfully!', 'success')
-                except Exception as e:
-                    flash(f'Restore failed: {str(e)}', 'error')
-            else:
-                flash('Invalid backup file selected', 'error')
+            try:
+                restore_backup(request.form.get('backup_file'))
+                flash('Database restored successfully! A backup of the previous data was taken first.', 'success')
+            except Exception as e:
+                flash(f'Restore failed: {str(e)}', 'error')
     
     # Get backup information
     last_backup_time, last_backup_path = get_last_backup_info()
@@ -1430,7 +1599,7 @@ def backup():
         for filename in os.listdir(BACKUP_DIR):
             if filename.startswith('oleema_backup_') and filename.endswith('.db'):
                 file_path = os.path.join(BACKUP_DIR, filename)
-                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                 available_backups.append({
                     'filename': filename,
                     'path': file_path,
@@ -1445,6 +1614,7 @@ def backup():
                          available_backups=available_backups)
 
 @app.route('/settings', methods=['GET', 'POST'])
+@admin_required
 def settings():
     """System settings page"""
     if not session.get('logged_in'):
@@ -1495,6 +1665,7 @@ def settings():
     return render_template('pages/settings.html', settings=settings_dict)
 
 @app.route('/audit-logs')
+@admin_required
 def audit_logs():
     """View audit logs"""
     if not session.get('logged_in'):
@@ -1625,10 +1796,14 @@ def add_material():
     if request.method == 'POST':
         name = request.form.get('name')
         unit = request.form.get('unit')
-        cost = float(request.form.get('cost_per_unit') or 0)
-        stock = float(request.form.get('current_stock') or 0)
-        reorder = float(request.form.get('reorder_level') or 0)
         description = request.form.get('description')
+        try:
+            cost = parse_float(request.form.get('cost_per_unit'), 'Cost per unit', minimum=0, default=0)
+            stock = parse_float(request.form.get('current_stock'), 'Current stock', minimum=0, default=0)
+            reorder = parse_float(request.form.get('reorder_level'), 'Reorder level', minimum=0, default=0)
+        except FormError as e:
+            flash(str(e), 'error')
+            return render_template('pages/add_material.html')
         
         if not all([name, unit]):
             flash('Please fill in all required fields', 'error')
@@ -1671,14 +1846,23 @@ def edit_material(material_id):
     material = Material.query.get_or_404(material_id)
     
     if request.method == 'POST':
+        try:
+            cost = parse_float(request.form.get('cost_per_unit'), 'Cost per unit', minimum=0, default=0)
+            reorder = parse_float(request.form.get('reorder_level'), 'Reorder level', minimum=0, default=0)
+            new_stock = parse_float(request.form.get('current_stock'), 'Current stock', minimum=0, default=0)
+        except FormError as e:
+            flash(str(e), 'error')
+            return render_template('pages/edit_material.html', material=material)
+        if not request.form.get('name') or not request.form.get('unit'):
+            flash('Please fill in all required fields', 'error')
+            return render_template('pages/edit_material.html', material=material)
         material.name = request.form.get('name')
         material.unit = request.form.get('unit')
-        material.cost_per_unit = float(request.form.get('cost_per_unit') or 0)
-        material.reorder_level = float(request.form.get('reorder_level') or 0)
+        material.cost_per_unit = cost
+        material.reorder_level = reorder
         material.description = request.form.get('description')
         
         # Handle stock adjustment
-        new_stock = float(request.form.get('current_stock') or 0)
         stock_diff = new_stock - material.current_stock
         
         if abs(stock_diff) > 0.001:
@@ -1714,4 +1898,5 @@ def delete_material(material_id):
     return redirect(url_for('materials'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Local only: never expose the debugger to other machines on the network
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1', host='127.0.0.1', port=5001)

@@ -63,7 +63,7 @@
         </div>
         <div class="card-body">
             <div class="relative h-64">
-                <canvas id="productionChart"></canvas>
+                <canvas id="productionChart" data-labels='{{ chart_dates|tojson }}' data-values='{{ daily_production|tojson }}'></canvas>
             </div>
         </div>
     </div>

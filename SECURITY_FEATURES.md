@@ -32,9 +32,8 @@ This guide explains the security features implemented in the Oleema Production M
   3. Backup will be saved in `backups/` folder
 
 ### Automatic Backup
-- **Script**: `auto_backup.py`
-- **How to run**: `python auto_backup.py`
-- **Schedule**: Run daily for automatic backups
+- The app takes a backup automatically when it starts if the last one is more than a day old
+- **Extra backups**: `python auto_backup.py` (e.g. from Windows Task Scheduler)
 
 ### Restore Backup
 - **How to use**:
@@ -46,7 +45,8 @@ This guide explains the security features implemented in the Oleema Production M
 ### Backup Information
 - **Location**: `backups/` folder
 - **Format**: `oleema_backup_YYYYMMDD_HHMMSS.db`
-- **Retention**: Last 7 days (automatic cleanup)
+- **Retention**: The newest 30 backups are kept (older ones are removed automatically)
+- **Restore safety**: A backup of the current data is taken before every restore
 - **Size**: Usually 50-200 KB
 
 ## ⏰ Session Timeout
@@ -83,8 +83,10 @@ This guide explains the security features implemented in the Oleema Production M
 ## 📁 File Locations
 
 ### Database
-- **Main**: `instance/oleema.db`
-- **Backups**: `backups/oleema_backup_*.db`
+- **Windows app**: `%APPDATA%\Oleema\oleema.db` (Start menu → *Oleema data folder*)
+- **Running from source**: `oleema.db` in the project folder
+- **Backups**: `backups\oleema_backup_*.db` next to the database
+- Copy the backups folder to a USB drive or cloud folder regularly
 
 ### Scripts
 - **Auto backup**: `auto_backup.py`

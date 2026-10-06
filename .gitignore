@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build output
+build/
+dist/
+*.spec
+
+# Local data (the app creates the database on first run)
+*.db
+*.db-journal
+backups/
+instance/
+secret.key
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
