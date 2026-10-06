@@ -762,6 +762,57 @@ def work_logs():
     work_logs = WorkLog.query.order_by(WorkLog.date.desc()).all()
     return render_template('pages/work_logs.html', work_logs=work_logs)
 
+@app.route('/work-logs/archive', methods=['POST'])
+def archive_work_logs():
+    """Archive all work logs to CSV and clear table"""
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    
+    try:
+        work_logs = WorkLog.query.all()
+        
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Employee ID', 'Employee Name', 'Order No', 'Process', 'Quantity', 'Rate/Piece', 'Date', 'Notes'])
+        
+        for wl in work_logs:
+            writer.writerow([
+                wl.id,
+                wl.employee.employee_id if wl.employee else '',
+                wl.employee.name if wl.employee else '',
+                wl.order.order_no if wl.order else '',
+                wl.process.name if wl.process else '',
+                wl.quantity,
+                wl.process.pay_rate if wl.process else 0,
+                wl.date.strftime('%Y-%m-%d') if wl.date else '',
+                wl.notes or ''
+            ])
+            
+        csv_data = output.getvalue()
+        
+        # Clear child tables first
+        WorkLogOverage.query.delete()
+        # Clear main table
+        WorkLog.query.delete()
+        db.session.commit()
+        
+        # Send file directly
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        return send_file(
+            io.BytesIO(csv_data.encode('utf-8-sig')),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'work_logs_archive_{timestamp}.csv'
+        )
+        
+    except Exception as e:
+        print(f"Error archiving work logs: {e}")
+        db.session.rollback()
+        flash('Error archiving work logs. Please try again.', 'error')
+        return redirect(url_for('work_logs'))
+
 @app.route('/work-logs/<int:work_log_id>/edit', methods=['GET', 'POST'])
 def edit_work_log(work_log_id):
     """Edit work log with overage detection"""

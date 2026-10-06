@@ -11,10 +11,18 @@
                 <h1 class="text-3xl font-bold text-gray-900">Work Logs</h1>
                 <p class="text-gray-600">Track all production work and employee activities</p>
             </div>
-            <a href="{{ url_for('work_log') }}" class="btn btn-primary">
-                <i class="fas fa-plus mr-2"></i>
-                Add Work Log
-            </a>
+            <div class="flex space-x-2">
+                <form action="{{ url_for('archive_work_logs') }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to archive and clear ALL work logs? This action cannot be undone.');">
+                    <button type="submit" class="btn btn-warning" style="background-color: #f59e0b; color: white;">
+                        <i class="fas fa-archive mr-2"></i>
+                        Archive & Clear
+                    </button>
+                </form>
+                <a href="{{ url_for('work_log') }}" class="btn btn-primary">
+                    <i class="fas fa-plus mr-2"></i>
+                    Add Work Log
+                </a>
+            </div>
         </div>
     </div>
 
